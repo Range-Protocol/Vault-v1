@@ -58,5 +58,8 @@
   "lint-staged": {
     "*.{ts,js}": "eslint -c .eslintrc.json"
   },
-  "version": "0.0.0"
+  "version": "0.0.0",
+  "dependencies": {
+    "@chainlink/contracts": "^0.8.0"
+  }
 }

@@ -18,4 +18,6 @@ library VaultErrors {
     error LiquidityAlreadyAdded();
     error ZeroManagerAddress();
     error SlippageExceedThreshold();
+    error OnlyVaultAllowed();
+    error InsufficientNativeTokenAmount(uint256);
 }

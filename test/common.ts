@@ -38,10 +38,19 @@ export const getInitializeData = (params: {
   name: string;
   symbol: string;
   WETH9: string;
+  oracleToken0: string;
+  oracleToken1: string;
 }): any =>
   ethers.utils.defaultAbiCoder.encode(
-    ["address", "string", "string", "address"],
-    [params.managerAddress, params.name, params.symbol, params.WETH9]
+    ["address", "string", "string", "address", "address", "address"],
+    [
+      params.managerAddress,
+      params.name,
+      params.symbol,
+      params.WETH9,
+      params.oracleToken0,
+      params.oracleToken1,
+    ]
   );
 
 export const bn = (value: any) => ethers.BigNumber.from(value);

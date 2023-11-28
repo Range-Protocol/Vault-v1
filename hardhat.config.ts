@@ -26,15 +26,16 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
+        blockNumber: 33887678,
         enabled: true,
-        url: "https://1rpc.io/bnb",
+        url: "https://bsc.publicnode.com",
       },
       allowUnlimitedContractSize: true,
     },
     mainnet: {
       accounts: PK ? [PK] : [],
-      chainId: 1,
-      url: `https://eth-mainnet.alchemyapi.io/v2/${ALCHEMY_ID}`,
+      chainId: 56,
+      url: `https://rpc.vnet.tenderly.co/devnet/native-test/d0d5e244-2320-46a1-8f71-ca93c93c2248`,
     },
     polygon: {
       accounts: PK ? [PK] : [],

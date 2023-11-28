@@ -6,12 +6,13 @@ import {SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ER
 import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import {IWETH9} from "../interfaces/IWETH9.sol";
 import {NativeTokenSupportErrors} from "../errors/NativeTokenSupportErrors.sol";
+import {DataTypes} from "./DataTypes.sol";
 
 library NativeTokenSupport {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     function processDeposit(
-        RangeProtocolVaultStorage.UserVault storage userVault,
+        DataTypes.UserVault storage userVault,
         address[] storage users,
         bool depositNative,
         IERC20Upgradeable token0,
@@ -55,7 +56,7 @@ library NativeTokenSupport {
     }
 
     function processWithdraw(
-        RangeProtocolVaultStorage.UserVault storage userVault,
+        DataTypes.UserVault storage userVault,
         bool withdrawNative,
         uint256 burnAmount,
         uint256 balanceBefore,
