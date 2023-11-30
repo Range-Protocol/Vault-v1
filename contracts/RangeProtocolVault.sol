@@ -3,30 +3,17 @@ pragma solidity 0.8.4;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {OwnableUpgradeable} from "./access/OwnableUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import {SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import {IERC20MetadataUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-
-import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-
 import {IPancakeV3Pool} from "./pancake/interfaces/IPancakeV3Pool.sol";
-
-import {TickMath} from "./pancake/TickMath.sol";
-import {LiquidityAmounts} from "./pancake/LiquidityAmounts.sol";
-import {FullMath} from "./pancake/FullMath.sol";
 import {IRangeProtocolVault} from "./interfaces/IRangeProtocolVault.sol";
 import {RangeProtocolVaultStorage} from "./RangeProtocolVaultStorage.sol";
-import {OwnableUpgradeable} from "./access/OwnableUpgradeable.sol";
 import {VaultErrors} from "./errors/VaultErrors.sol";
-
 import {LogicLib} from "./libraries/LogicLib.sol";
-
-import "hardhat/console.sol";
 
 /**
  * @dev Mars@RangeProtocol
@@ -88,8 +75,8 @@ contract RangeProtocolVault is
             string memory _name,
             string memory _symbol,
             address _WETH9,
-            address _oracleToken0,
-            address _oracleToken1
+            address _priceOracleToken0,
+            address _priceOracleToken1
         ) = abi.decode(data, (address, string, string, address, address, address));
 
         // reverts if manager address provided is zero.
@@ -108,8 +95,8 @@ contract RangeProtocolVault is
         state.tickSpacing = _tickSpacing;
         state.factory = msg.sender;
         state.WETH9 = _WETH9;
-        state.oracleToken0 = AggregatorV3Interface(_oracleToken0);
-        state.oracleToken1 = AggregatorV3Interface(_oracleToken1);
+        state.priceOracleToken0 = _priceOracleToken0;
+        state.priceOracleToken1 = _priceOracleToken1;
 
         // Managing fee is 0% and performanceFee is 10% at the time vault initialization.
         LogicLib.updateFees(state, 0, 1000);
@@ -250,50 +237,26 @@ contract RangeProtocolVault is
         int24 newUpperTick,
         uint256 amount0,
         uint256 amount1,
-        uint256[2] calldata maxAmounts
+        uint256[2] memory maxAmounts
     ) external override onlyManager returns (uint256 remainingAmount0, uint256 remainingAmount1) {
         return
             LogicLib.addLiquidity(state, newLowerTick, newUpperTick, amount0, amount1, maxAmounts);
     }
 
-    function rebalance(bytes memory swapData) external onlyManager {
-        address target = 0xEAd050515E10fDB3540ccD6f8236C46790508A76;
-//        AggregatorV3Interface oracleToken0 = state.oracleToken0;
-//        AggregatorV3Interface oracleToken1 = state.oracleToken1;
-//        (, int256 token0Price, , , ) = oracleToken0.latestRoundData();
-//        (, int256 token1Price, , , ) = oracleToken1.latestRoundData();
-//
-//        uint256 priceFromOracle = (uint256(token0Price) *
-//            10 ** oracleToken1.decimals() *
-//            10 ** IERC20MetadataUpgradeable(address(state.token1)).decimals()) /
-//            uint256(token1Price) /
-//            10 ** oracleToken0.decimals();
-//
-//        (uint256 balance0Before, uint256 balance1Before) = getUnderlyingBalances();
-        state.token0.approve(target, 100 * 10 ** 18);
-        state.token1.approve(target, 100 * 10 ** 18);
-
-//        console.log(state.token0.balanceOf(address(this)));
-//        console.log(state.token1.balanceOf(address(this)));
-        console.log(address(this));
-        Address.functionCall(target, swapData);
-//        (uint256 balance0After, uint256 balance1After) = getUnderlyingBalances();
-//
-//        uint256 amount0Delta = balance0After > balance0Before
-//            ? balance0After - balance0Before
-//            : balance0Before - balance0After;
-//
-//        uint256 amount1Delta = balance1After > balance1Before
-//            ? balance1After - balance1Before
-//            : balance1Before - balance1After;
-//
-//        console.log(balance0Before, balance0After);
-//        console.log(balance1Before, balance1After);
-
-        //        uint256 swapPrice = (amount1Delta * IERC20MetadataUpgradeable(address(state.token0)).decimals()) /
-//            amount0Delta;
-//        console.log(priceFromOracle);
-//        console.log(swapPrice);
+    /*
+     * @dev Allows rebalance of the vault by manager using off-chain quote and non-pool venues.
+     * @param target address of the target swap venue.
+     * @param swapData data to send to the target swap venue.
+     * @param zeroForOne swap direction, true for x -> y; false for y -> x.
+     * @param amount amount of tokenIn to swap.
+     **/
+    function rebalance(
+        address target,
+        bytes calldata swapData,
+        bool zeroForOne,
+        uint256 amount
+    ) external onlyManager {
+        LogicLib.rebalance(state, target, swapData, zeroForOne, amount);
     }
 
     /**

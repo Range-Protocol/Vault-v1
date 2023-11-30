@@ -98,6 +98,8 @@ describe("RangeProtocolVault::Native", () => {
       name,
       symbol,
       WETH9: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+      oracleToken0: "0xB97Ad0E74fa7d920791E90258A6E2085088b4320",
+      oracleToken1: "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE",
     });
 
     const LogicLib = await ethers.getContractFactory("LogicLib");
@@ -189,6 +191,18 @@ describe("RangeProtocolVault::Native", () => {
     await expect(
       vault["mint(uint256,bool,uint256[2])"](mintAmount, false, [0, 0])
     ).to.be.revertedWithCustomError(logicLib, "InvalidMintAmount");
+  });
+
+  it("non-vault address should not be able to call mint function", async () => {
+    await expect(
+      vault["mint(address,uint256)"](user2.address, 123)
+    ).to.be.revertedWithCustomError(vault, "OnlyVaultAllowed");
+  });
+
+  it("non-vault address should not be able to call burn function", async () => {
+    await expect(
+      vault["burn(address,uint256)"](user2.address, 123)
+    ).to.be.revertedWithCustomError(vault, "OnlyVaultAllowed");
   });
 
   it("should not mint when contract is paused", async () => {
@@ -633,13 +647,13 @@ describe("RangeProtocolVault::Native", () => {
       const managerBalance1Before = await vault.managerBalance1();
 
       const managingFee = await vault.managingFee();
-      console.log(managingFee)
+      console.log(managingFee);
       const userBalance0 = amount0Current.mul(vaultShares).div(totalSupply);
       const managingFee0 = userBalance0.mul(managingFee).div(10_000);
 
       const userBalance1 = amount1Current.mul(vaultShares).div(totalSupply);
       const managingFee1 = userBalance1.mul(managingFee).div(10_000);
-      console.log(managingFee0, managingFee1)
+      console.log(managingFee0, managingFee1);
 
       const { amount0: minAmount0, amount1: minAmount1 } =
         await vault.getUnderlyingBalancesByShare(vaultShares);

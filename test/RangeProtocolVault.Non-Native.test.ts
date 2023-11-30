@@ -94,6 +94,8 @@ describe("RangeProtocolVault::Non-Native", () => {
       name,
       symbol,
       WETH9: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+      oracleToken0: "0xB97Ad0E74fa7d920791E90258A6E2085088b4320",
+      oracleToken1: "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE",
     });
 
     const LogicLib = await ethers.getContractFactory("LogicLib");

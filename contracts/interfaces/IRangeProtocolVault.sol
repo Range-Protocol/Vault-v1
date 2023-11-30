@@ -43,7 +43,6 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
     event MintStarted();
 
     // GETTER FUNCTIONS
-
     function lowerTick() external view returns (int24);
 
     function upperTick() external view returns (int24);
@@ -97,8 +96,11 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
 
     function userCount() external view returns (uint256);
 
-    // STATE MODIFYING FUNCTIONS
+    function getPriceOracleToken0() external view returns (address);
 
+    function getPriceOracleToken1() external view returns (address);
+
+    // STATE MODIFYING FUNCTIONS
     function initialize(address _pool, int24 _tickSpacing, bytes memory data) external;
 
     function updateTicks(int24 _lowerTick, int24 _upperTick) external;

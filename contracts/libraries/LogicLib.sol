@@ -1,30 +1,20 @@
 //SPDX-License-Identifier: MIT
 pragma solidity 0.8.4;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import {IERC20MetadataUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {IPancakeV3Pool} from "../pancake/interfaces/IPancakeV3Pool.sol";
-
 import {TickMath} from "../pancake/TickMath.sol";
 import {LiquidityAmounts} from "../pancake/LiquidityAmounts.sol";
 import {FullMath} from "../pancake/FullMath.sol";
 import {IRangeProtocolVault} from "../interfaces/IRangeProtocolVault.sol";
-import {RangeProtocolVaultStorage} from "../RangeProtocolVaultStorage.sol";
-import {OwnableUpgradeable} from "../access/OwnableUpgradeable.sol";
 import {VaultErrors} from "../errors/VaultErrors.sol";
-
-import {IRangeProtocolVault} from "../interfaces/IRangeProtocolVault.sol";
 import {IWETH9} from "../interfaces/IWETH9.sol";
-
 import {DataTypes} from "../libraries/DataTypes.sol";
-
-import "hardhat/console.sol";
 
 library LogicLib {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -496,6 +486,55 @@ library LogicLib {
             // Should return remaining token number for swap
             remainingAmount0 = amount0 - amountDeposited0;
             remainingAmount1 = amount1 - amountDeposited1;
+        }
+    }
+
+    /*
+     * @dev Allows rebalance of the vault by manager using off-chain quote and non-pool venues.
+     * @param target address of the target swap venue.
+     * @param swapData data to send to the target swap venue.
+     * @param zeroForOne swap direction, true for x -> y; false for y -> x.
+     * @param amount amount of tokenIn to swap.
+     **/
+    function rebalance(
+        DataTypes.State storage state,
+        address target,
+        bytes calldata swapData,
+        bool zeroForOne,
+        uint256 amount
+    ) external {
+        IERC20MetadataUpgradeable token0 = IERC20MetadataUpgradeable(address(state.token0));
+        IERC20MetadataUpgradeable token1 = IERC20MetadataUpgradeable(address(state.token1));
+        AggregatorV3Interface oracleToken0 = AggregatorV3Interface(state.priceOracleToken0);
+        AggregatorV3Interface oracleToken1 = AggregatorV3Interface(state.priceOracleToken1);
+
+        (zeroForOne ? token0 : token1).approve(target, amount);
+        uint256 balance0Before = token0.balanceOf(address(this));
+        uint256 balance1Before = token1.balanceOf(address(this));
+        Address.functionCall(target, swapData);
+        uint256 balance0After = token0.balanceOf(address(this));
+        uint256 balance1After = token1.balanceOf(address(this));
+
+        uint256 amount0Delta = balance0After > balance0Before
+            ? balance0After - balance0Before
+            : balance0Before - balance0After;
+        uint256 amount1Delta = balance1After > balance1Before
+            ? balance1After - balance1Before
+            : balance1Before - balance1After;
+
+        uint256 swapPrice = (amount1Delta * 10 ** token0.decimals()) / amount0Delta;
+        (, int256 token0Price, , , ) = oracleToken0.latestRoundData();
+        (, int256 token1Price, , , ) = oracleToken1.latestRoundData();
+
+        uint256 priceFromOracle = (uint256(token0Price) *
+            10 ** oracleToken1.decimals() *
+            10 ** token1.decimals()) /
+            uint256(token1Price) /
+            10 ** oracleToken0.decimals();
+
+        uint256 swapRatio = (priceFromOracle * 10_000) / swapPrice;
+        if (swapRatio < 9900 || swapRatio > 10100) {
+            revert VaultErrors.RebalanceSlippageExceedsThreshold(swapRatio);
         }
     }
 

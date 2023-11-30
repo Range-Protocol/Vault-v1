@@ -35,8 +35,8 @@ library DataTypes {
         mapping(address => UserVault) userVaults;
         address[] users;
         address WETH9;
-        AggregatorV3Interface oracleToken0;
-        AggregatorV3Interface oracleToken1;
+        address priceOracleToken0;
+        address priceOracleToken1;
         // NOTE: Only add more state variable below it and do not change the order of above state variables.
     }
 }
