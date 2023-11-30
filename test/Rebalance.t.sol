@@ -6,6 +6,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {RangeProtocolFactory} from "../contracts/RangeProtocolFactory.sol";
 import {RangeProtocolVault} from "../contracts/RangeProtocolVault.sol";
+import {VaultErrors} from "../contracts/errors/VaultErrors.sol";
 
 contract CounterTest is Test {
     RangeProtocolFactory factory;
@@ -70,6 +71,10 @@ contract CounterTest is Test {
         address target = vm.envAddress("target");
         bytes memory swapData = vm.envBytes("calldata");
 
+        vm.expectRevert(VaultErrors.ZeroRebalanceAmount.selector);
+        vault.rebalance(target, swapData, true, 0);
+
+        console2.log
         vault.rebalance(target, swapData, true, amount);
     }
 }

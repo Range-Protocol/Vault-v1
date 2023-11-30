@@ -503,6 +503,7 @@ library LogicLib {
         bool zeroForOne,
         uint256 amount
     ) external {
+        if (amount == 0) revert VaultErrors.ZeroRebalanceAmount();
         IERC20MetadataUpgradeable token0 = IERC20MetadataUpgradeable(address(state.token0));
         IERC20MetadataUpgradeable token1 = IERC20MetadataUpgradeable(address(state.token1));
         AggregatorV3Interface oracleToken0 = AggregatorV3Interface(state.priceOracleToken0);
