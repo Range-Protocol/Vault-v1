@@ -535,7 +535,7 @@ library LogicLib {
 
         uint256 swapRatio = (priceFromOracle * 10_000) / swapPrice;
         if (swapRatio < 9900 || swapRatio > 10100) {
-            revert VaultErrors.RebalanceSlippageExceedsThreshold(swapRatio);
+            revert VaultErrors.RebalanceSlippageExceedsThreshold();
         }
     }
 
