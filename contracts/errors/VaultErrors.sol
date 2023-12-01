@@ -22,4 +22,5 @@ library VaultErrors {
     error InsufficientNativeTokenAmount(uint256);
     error RebalanceSlippageExceedsThreshold();
     error ZeroRebalanceAmount();
+    error RebalanceIntervalNotReached();
 }

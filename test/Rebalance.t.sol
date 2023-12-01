@@ -54,6 +54,12 @@ contract CounterTest is Test {
         vault.rebalance(target, swapData, true, amount);
 
         vault.rebalance(target, swapData, true, amount);
+
+        vm.expectRevert(VaultErrors.RebalanceIntervalNotReached.selector);
+        vault.rebalance(target, swapData, true, amount);
+
+        vm.rollFork(block.number - 1);
+        vault.rebalance(target, swapData, true, amount);
     }
 
     function fundTestContractWithTokens() private {

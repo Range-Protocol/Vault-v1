@@ -96,9 +96,11 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
 
     function userCount() external view returns (uint256);
 
-    function getPriceOracleToken0() external view returns (address);
+    function priceOracle0() external view returns (address);
 
-    function getPriceOracleToken1() external view returns (address);
+    function priceOracle1() external view returns (address);
+
+    function lastRebalanceTimestamp() external view returns (uint256);
 
     // STATE MODIFYING FUNCTIONS
     function initialize(address _pool, int24 _tickSpacing, bytes memory data) external;

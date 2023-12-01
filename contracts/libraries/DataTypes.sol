@@ -37,6 +37,7 @@ library DataTypes {
         address WETH9;
         address priceOracleToken0;
         address priceOracleToken1;
+        uint256 lastRebalanceTimestamp;
         // NOTE: Only add more state variable below it and do not change the order of above state variables.
     }
 }

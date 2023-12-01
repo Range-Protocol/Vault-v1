@@ -105,11 +105,15 @@ abstract contract RangeProtocolVaultStorage is IRangeProtocolVault {
         return state.users.length;
     }
 
-    function getPriceOracleToken0() external view override returns (address) {
+    function priceOracle0() external view override returns (address) {
         return state.priceOracleToken0;
     }
 
-    function getPriceOracleToken1() external view override returns (address) {
+    function priceOracle1() external view override returns (address) {
         return state.priceOracleToken1;
+    }
+
+    function lastRebalanceTimestamp() external view override returns (uint256) {
+        return state.lastRebalanceTimestamp;
     }
 }
