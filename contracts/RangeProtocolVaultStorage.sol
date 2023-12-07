@@ -116,4 +116,23 @@ abstract contract RangeProtocolVaultStorage is IRangeProtocolVault {
     function lastRebalanceTimestamp() external view override returns (uint256) {
         return state.lastRebalanceTimestamp;
     }
+
+    /**
+     * @dev returns other fee percentage
+     */
+    function otherFee() external view override returns (uint256) {
+        return state.otherFee;
+    }
+
+    function otherFeeRecipient() external view override returns (address) {
+        return state.otherFeeRecipient;
+    }
+
+    function otherBalance0() external view override returns (uint256) {
+        return state.otherBalance0;
+    }
+
+    function otherBalance1() external view override returns (uint256) {
+        return state.otherBalance1;
+    }
 }

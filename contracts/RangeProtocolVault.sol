@@ -76,11 +76,13 @@ contract RangeProtocolVault is
             string memory _symbol,
             address _WETH9,
             address _priceOracleToken0,
-            address _priceOracleToken1
-        ) = abi.decode(data, (address, string, string, address, address, address));
+            address _priceOracleToken1,
+            address _otherFeeRecipient
+        ) = abi.decode(data, (address, string, string, address, address, address, address));
 
         // reverts if manager address provided is zero.
         if (manager == address(0x0)) revert VaultErrors.ZeroManagerAddress();
+        if (_otherFeeRecipient == address(0x0)) revert VaultErrors.ZeroOtherFeeRecipientAddress();
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
         __Ownable_init();
@@ -97,9 +99,10 @@ contract RangeProtocolVault is
         state.WETH9 = _WETH9;
         state.priceOracleToken0 = _priceOracleToken0;
         state.priceOracleToken1 = _priceOracleToken1;
+        state.otherFeeRecipient = _otherFeeRecipient;
 
         // Managing fee is 0% and performanceFee is 10% at the time vault initialization.
-        LogicLib.updateFees(state, 0, 1000);
+        LogicLib.updateFees(state, 0, 1000, 0);
     }
 
     function mint(address to, uint256 amount) external override onlyVault {
@@ -272,14 +275,20 @@ contract RangeProtocolVault is
         LogicLib.collectManager(state, manager());
     }
 
+    /// @notice transfers {otherFee} to {otherFeeRecipient}.
+    function collectOtherFee() external override {
+        LogicLib.collectOtherFee(state);
+    }
+
     /**
      * @notice updateFees allows updating of managing and performance fees
      */
     function updateFees(
         uint16 newManagingFee,
-        uint16 newPerformanceFee
+        uint16 newPerformanceFee,
+        uint16 newOtherFee
     ) external override onlyManager {
-        LogicLib.updateFees(state, newManagingFee, newPerformanceFee);
+        LogicLib.updateFees(state, newManagingFee, newPerformanceFee, newOtherFee);
     }
 
     /**

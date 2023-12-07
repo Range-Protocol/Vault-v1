@@ -96,6 +96,7 @@ describe("RangeProtocolVault::Non-Native", () => {
       WETH9: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
       oracleToken0: "0xB97Ad0E74fa7d920791E90258A6E2085088b4320",
       oracleToken1: "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE",
+      otherFeeRecipient: manager.address
     });
 
     const LogicLib = await ethers.getContractFactory("LogicLib");
@@ -418,7 +419,7 @@ describe("RangeProtocolVault::Non-Native", () => {
 
     const userVault0Before = (await vault.userVaults(manager.address)).token0;
     const userVault1Before = (await vault.userVaults(manager.address)).token1;
-    await vault.updateFees(50, 250);
+    await vault.updateFees(50, 250, 0);
 
     const managingFee = await vault.managingFee();
     const totalSupply = await vault.totalSupply();
@@ -511,28 +512,28 @@ describe("RangeProtocolVault::Non-Native", () => {
   describe("Manager Fee", () => {
     it("should not update managing and performance fee by non manager", async () => {
       await expect(
-        vault.connect(nonManager).updateFees(100, 1000)
+        vault.connect(nonManager).updateFees(100, 1000, 0)
       ).to.be.revertedWith("Ownable: caller is not the manager");
     });
 
     it("should not update managing fee above BPS", async () => {
-      await expect(vault.updateFees(101, 100)).to.be.revertedWithCustomError(
+      await expect(vault.updateFees(101, 100, 0)).to.be.revertedWithCustomError(
         logicLib,
         "InvalidManagingFee"
       );
     });
 
     it("should not update performance fee above BPS", async () => {
-      await expect(vault.updateFees(100, 10001)).to.be.revertedWithCustomError(
+      await expect(vault.updateFees(100, 10001, 0)).to.be.revertedWithCustomError(
         logicLib,
         "InvalidPerformanceFee"
       );
     });
 
     it("should update manager and performance fee by manager", async () => {
-      await expect(vault.updateFees(100, 300))
-        .to.emit(vault, "FeesUpdated")
-        .withArgs(100, 300);
+      await expect(vault.updateFees(100, 300, 0))
+        .to.emit(logicLib, "FeesUpdated")
+        .withArgs(100, 300, 0);
     });
   });
 

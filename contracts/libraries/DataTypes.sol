@@ -38,6 +38,10 @@ library DataTypes {
         address priceOracleToken0;
         address priceOracleToken1;
         uint256 lastRebalanceTimestamp;
+        uint256 otherFee;
+        uint256 otherBalance0;
+        uint256 otherBalance1;
+        address otherFeeRecipient;
         // NOTE: Only add more state variable below it and do not change the order of above state variables.
     }
 }

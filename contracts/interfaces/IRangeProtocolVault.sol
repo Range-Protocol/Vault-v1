@@ -36,7 +36,7 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
         uint256 amount1Out
     );
     event FeesEarned(uint256 feesEarned0, uint256 feesEarned1);
-    event FeesUpdated(uint16 managingFee, uint16 performanceFee);
+    event FeesUpdated(uint16 managingFee, uint16 performanceFee, uint16 otherFee);
     event InThePositionStatusSet(bool inThePosition);
     event Swapped(bool zeroForOne, int256 amount0, int256 amount1);
     event TicksSet(int24 lowerTick, int24 upperTick);
@@ -102,6 +102,14 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
 
     function lastRebalanceTimestamp() external view returns (uint256);
 
+    function otherFee() external view returns (uint256);
+
+    function otherFeeRecipient() external view returns (address);
+
+    function otherBalance0() external view returns (uint256);
+
+    function otherBalance1() external view returns (uint256);
+
     // STATE MODIFYING FUNCTIONS
     function initialize(address _pool, int24 _tickSpacing, bytes memory data) external;
 
@@ -142,5 +150,11 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
 
     function collectManager() external;
 
-    function updateFees(uint16 newManagingFee, uint16 newPerformanceFee) external;
+    function collectOtherFee() external;
+
+    function updateFees(
+        uint16 newManagingFee,
+        uint16 newPerformanceFee,
+        uint16 newOtherFee
+    ) external;
 }

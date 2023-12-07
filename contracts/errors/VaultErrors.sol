@@ -23,4 +23,5 @@ library VaultErrors {
     error RebalanceSlippageExceedsThreshold();
     error ZeroRebalanceAmount();
     error RebalanceIntervalNotReached();
+    error ZeroOtherFeeRecipientAddress();
 }

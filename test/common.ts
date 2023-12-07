@@ -40,9 +40,10 @@ export const getInitializeData = (params: {
   WETH9: string;
   oracleToken0: string;
   oracleToken1: string;
+  otherFeeRecipient: string;
 }): any =>
   ethers.utils.defaultAbiCoder.encode(
-    ["address", "string", "string", "address", "address", "address"],
+    ["address", "string", "string", "address", "address", "address", "address"],
     [
       params.managerAddress,
       params.name,
@@ -50,6 +51,7 @@ export const getInitializeData = (params: {
       params.WETH9,
       params.oracleToken0,
       params.oracleToken1,
+      params.otherFeeRecipient
     ]
   );
 

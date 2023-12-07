@@ -52,7 +52,7 @@ library LogicLib {
         uint256 amount1Out
     );
     event FeesEarned(uint256 feesEarned0, uint256 feesEarned1);
-    event FeesUpdated(uint16 managingFee, uint16 performanceFee);
+    event FeesUpdated(uint16 managingFee, uint16 performanceFee, uint16 otherFee);
     event InThePositionStatusSet(bool inThePosition);
     event Swapped(bool zeroForOne, int256 amount0, int256 amount1);
     event TicksSet(int24 lowerTick, int24 upperTick);
@@ -282,8 +282,8 @@ library LogicLib {
                 liquidityBurned
             );
 
-            _applyPerformanceFee(state, fee0, fee1);
-            (fee0, fee1) = _netPerformanceFees(state, fee0, fee1);
+            _applyPerformanceAndOtherFee(state, fee0, fee1);
+            (fee0, fee1) = _netPerformanceAndOtherFees(state, fee0, fee1);
             emit FeesEarned(fee0, fee1);
 
             vars.passiveBalance0 = vars.token0.balanceOf(address(this)) - burn0;
@@ -385,8 +385,8 @@ library LogicLib {
 
             emit LiquidityRemoved(liquidity, _lowerTick, _upperTick, amount0, amount1);
 
-            _applyPerformanceFee(state, fee0, fee1);
-            (fee0, fee1) = _netPerformanceFees(state, fee0, fee1);
+            _applyPerformanceAndOtherFee(state, fee0, fee1);
+            (fee0, fee1) = _netPerformanceAndOtherFees(state, fee0, fee1);
             emit FeesEarned(fee0, fee1);
         }
 
@@ -565,15 +565,27 @@ library LogicLib {
         }
     }
 
+    function collectOtherFee(DataTypes.State storage state) external {
+        uint256 amount0 = state.otherBalance0;
+        uint256 amount1 = state.otherBalance1;
+        state.otherBalance0 = 0;
+        state.otherBalance1 = 0;
+
+        address _otherFeeRecipient = state.otherFeeRecipient;
+        if (amount0 > 0) state.token0.safeTransfer(_otherFeeRecipient, amount0);
+        if (amount1 > 0) state.token1.safeTransfer(_otherFeeRecipient, amount1);
+    }
+
     /**
      * @notice updateFees allows updating of managing and performance fees
      */
     function updateFees(
         DataTypes.State storage state,
         uint16 newManagingFee,
-        uint16 newPerformanceFee
+        uint16 newPerformanceFee,
+        uint16 newOtherFee
     ) external {
-        _updateFees(state, newManagingFee, newPerformanceFee);
+        _updateFees(state, newManagingFee, newPerformanceFee, newOtherFee);
     }
 
     /**
@@ -640,7 +652,7 @@ library LogicLib {
         fee1 =
             _feesEarned(state, false, feeGrowthInside1Last, tick, liquidity) +
             uint256(tokensOwed1);
-        (fee0, fee1) = _netPerformanceFees(state, fee0, fee1);
+        (fee0, fee1) = _netPerformanceAndOtherFees(state, fee0, fee1);
     }
 
     /**
@@ -743,7 +755,7 @@ library LogicLib {
             fee1 =
                 _feesEarned(state, false, feeGrowthInside1Last, tick, liquidity) +
                 uint256(tokensOwed1);
-            (fee0, fee1) = _netPerformanceFees(state, fee0, fee1);
+            (fee0, fee1) = _netPerformanceAndOtherFees(state, fee0, fee1);
         }
 
         uint256 passiveBalance0 = fee0 + state.token0.balanceOf(address(this));
@@ -918,11 +930,11 @@ library LogicLib {
     }
 
     /**
-     * @notice _applyPerformanceFee applies the performance fee to the fees earned from pancake v3 pool.
+     * @notice _applyPerformanceAndOtherFee applies the performance fee to the fees earned from pancake v3 pool.
      * @param fee0 fee earned in token0
      * @param fee1 fee earned in token1
      */
-    function _applyPerformanceFee(
+    function _applyPerformanceAndOtherFee(
         DataTypes.State storage state,
         uint256 fee0,
         uint256 fee1
@@ -930,6 +942,10 @@ library LogicLib {
         uint256 _performanceFee = state.performanceFee;
         state.managerBalance0 += (fee0 * _performanceFee) / 10_000;
         state.managerBalance1 += (fee1 * _performanceFee) / 10_000;
+
+        uint256 _otherFee = state.otherFee;
+        state.otherBalance0 += (fee0 * _otherFee) / 10_000;
+        state.otherBalance1 += (fee1 * _otherFee) / 10_000;
     }
 
     /**
@@ -952,20 +968,21 @@ library LogicLib {
     }
 
     /**
-     * @notice _netPerformanceFees computes the fee share for manager as performance fee from the fee earned from pancake v3 pool.
+     * @notice _netPerformanceAndOtherFees computes the fee share for manager as performance fee from the fee earned from pancake v3 pool.
      * @param rawFee0 fee earned in token0 from pancake v3 pool.
      * @param rawFee1 fee earned in token1 from pancake v3 pool.
      * @return fee0AfterDeduction fee in token0 earned after deducting performance fee from earned fee.
      * @return fee1AfterDeduction fee in token1 earned after deducting performance fee from earned fee.
      */
-    function _netPerformanceFees(
+    function _netPerformanceAndOtherFees(
         DataTypes.State storage state,
         uint256 rawFee0,
         uint256 rawFee1
     ) private view returns (uint256 fee0AfterDeduction, uint256 fee1AfterDeduction) {
         uint256 _performanceFee = state.performanceFee;
-        uint256 deduct0 = (rawFee0 * _performanceFee) / 10_000;
-        uint256 deduct1 = (rawFee1 * _performanceFee) / 10_000;
+        uint256 _otherFee = state.otherFee;
+        uint256 deduct0 = ((rawFee0 * _performanceFee) / 10_000) + ((rawFee0 * _otherFee) / 10_000);
+        uint256 deduct1 = ((rawFee1 * _performanceFee) / 10_000) + ((rawFee1 * _otherFee) / 10_000);
         fee0AfterDeduction = rawFee0 - deduct0;
         fee1AfterDeduction = rawFee1 - deduct1;
     }
@@ -1015,8 +1032,8 @@ library LogicLib {
      */
     function _pullFeeFromPool(DataTypes.State storage state) private {
         (, , uint256 fee0, uint256 fee1) = _withdraw(state, 0);
-        _applyPerformanceFee(state, fee0, fee1);
-        (fee0, fee1) = _netPerformanceFees(state, fee0, fee1);
+        _applyPerformanceAndOtherFee(state, fee0, fee1);
+        (fee0, fee1) = _netPerformanceAndOtherFees(state, fee0, fee1);
         emit FeesEarned(fee0, fee1);
     }
 
@@ -1029,7 +1046,8 @@ library LogicLib {
     function _updateFees(
         DataTypes.State storage state,
         uint16 newManagingFee,
-        uint16 newPerformanceFee
+        uint16 newPerformanceFee,
+        uint16 newOtherFee
     ) private {
         if (newManagingFee > MAX_MANAGING_FEE_BPS) revert VaultErrors.InvalidManagingFee();
         if (newPerformanceFee > MAX_PERFORMANCE_FEE_BPS) revert VaultErrors.InvalidPerformanceFee();
@@ -1037,6 +1055,7 @@ library LogicLib {
         if (state.inThePosition) _pullFeeFromPool(state);
         state.managingFee = newManagingFee;
         state.performanceFee = newPerformanceFee;
-        emit FeesUpdated(newManagingFee, newPerformanceFee);
+        state.otherFee = newOtherFee;
+        emit FeesUpdated(newManagingFee, newPerformanceFee, newOtherFee);
     }
 }
