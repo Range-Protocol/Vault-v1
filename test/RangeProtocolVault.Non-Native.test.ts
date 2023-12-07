@@ -532,7 +532,7 @@ describe("RangeProtocolVault::Non-Native", () => {
 
     it("should update manager and performance fee by manager", async () => {
       await expect(vault.updateFees(100, 300, 0))
-        .to.emit(logicLib, "FeesUpdated")
+        .to.emit(vault, "FeesUpdated")
         .withArgs(100, 300, 0);
     });
   });

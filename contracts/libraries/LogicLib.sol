@@ -57,6 +57,7 @@ library LogicLib {
     event Swapped(bool zeroForOne, int256 amount0, int256 amount1);
     event TicksSet(int24 lowerTick, int24 upperTick);
     event MintStarted();
+    event OtherFeeRecipientSet(address otherFeeRecipient);
 
     /**
      * @notice updateTicks it is called by the contract manager to update the ticks.
@@ -574,6 +575,15 @@ library LogicLib {
         address _otherFeeRecipient = state.otherFeeRecipient;
         if (amount0 > 0) state.token0.safeTransfer(_otherFeeRecipient, amount0);
         if (amount1 > 0) state.token1.safeTransfer(_otherFeeRecipient, amount1);
+    }
+
+    function setOtherFeeRecipient(
+        DataTypes.State storage state,
+        address newOtherFeeRecipient
+    ) external {
+        if (newOtherFeeRecipient == address(0x0)) revert VaultErrors.ZeroOtherFeeRecipientAddress();
+        state.otherFeeRecipient = newOtherFeeRecipient;
+        emit OtherFeeRecipientSet(newOtherFeeRecipient);
     }
 
     /**

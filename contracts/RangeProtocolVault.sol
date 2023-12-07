@@ -82,7 +82,6 @@ contract RangeProtocolVault is
 
         // reverts if manager address provided is zero.
         if (manager == address(0x0)) revert VaultErrors.ZeroManagerAddress();
-        if (_otherFeeRecipient == address(0x0)) revert VaultErrors.ZeroOtherFeeRecipientAddress();
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
         __Ownable_init();
@@ -99,8 +98,8 @@ contract RangeProtocolVault is
         state.WETH9 = _WETH9;
         state.priceOracleToken0 = _priceOracleToken0;
         state.priceOracleToken1 = _priceOracleToken1;
-        state.otherFeeRecipient = _otherFeeRecipient;
 
+        LogicLib.setOtherFeeRecipient(state, _otherFeeRecipient);
         // Managing fee is 0% and performanceFee is 10% at the time vault initialization.
         LogicLib.updateFees(state, 0, 1000, 0);
     }
@@ -278,6 +277,10 @@ contract RangeProtocolVault is
     /// @notice transfers {otherFee} to {otherFeeRecipient}.
     function collectOtherFee() external override {
         LogicLib.collectOtherFee(state);
+    }
+
+    function setOtherFeeRecipient(address newOtherFeeRecipient) external onlyManager {
+        LogicLib.setOtherFeeRecipient(state, newOtherFeeRecipient);
     }
 
     /**
