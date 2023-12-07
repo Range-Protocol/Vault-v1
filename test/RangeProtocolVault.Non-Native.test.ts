@@ -17,6 +17,7 @@ import {
   getInitializeData,
   parseEther,
   position,
+  ZERO_ADDRESS,
 } from "./common";
 import { beforeEach } from "mocha";
 import { BigNumber } from "ethers";
@@ -33,6 +34,7 @@ let manager: SignerWithAddress;
 let nonManager: SignerWithAddress;
 let newManager: SignerWithAddress;
 let user2: SignerWithAddress;
+let otherFeeRecipient: SignerWithAddress;
 const poolFee = 10000;
 const name = "Test Token";
 const symbol = "TT";
@@ -44,7 +46,8 @@ const upperTick = 880000;
 
 describe("RangeProtocolVault::Non-Native", () => {
   before(async () => {
-    [manager, nonManager, user2, newManager] = await ethers.getSigners();
+    [manager, nonManager, user2, newManager, otherFeeRecipient] =
+      await ethers.getSigners();
     pancakeV3Factory = (await ethers.getContractAt(
       "IPancakeV3Factory",
       "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865"
@@ -96,7 +99,7 @@ describe("RangeProtocolVault::Non-Native", () => {
       WETH9: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
       oracleToken0: "0xB97Ad0E74fa7d920791E90258A6E2085088b4320",
       oracleToken1: "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE",
-      otherFeeRecipient: manager.address
+      otherFeeRecipient: manager.address,
     });
 
     const LogicLib = await ethers.getContractFactory("LogicLib");
@@ -181,6 +184,18 @@ describe("RangeProtocolVault::Non-Native", () => {
     expect(await vault.mintStarted()).to.be.equal(true);
     expect(await vault.lowerTick()).to.be.equal(lowerTick);
     expect(await vault.upperTick()).to.be.equal(upperTick);
+  });
+
+  it("only vault should be allowed to call mint(address,uint256)", async () => {
+    await expect(
+      vault["mint(address,uint256)"](user2.address, 1)
+    ).to.be.revertedWithCustomError(vault, "OnlyVaultAllowed");
+  });
+
+  it("only vault should be allowed to burn(address,uint256)", async () => {
+    await expect(
+      vault["burn(address,uint256)"](user2.address, 1)
+    ).to.be.revertedWithCustomError(vault, "OnlyVaultAllowed");
   });
 
   it("should not allow minting with zero mint amount", async () => {
@@ -433,7 +448,12 @@ describe("RangeProtocolVault::Non-Native", () => {
 
     const { amount0: minAmount0, amount1: minAmount1 } =
       await vault.getUnderlyingBalancesByShare(vaultShares);
-    await expect(vault["burn(uint256,bool,uint256[2])"](burnAmount, false, [minAmount0, minAmount1]))
+    await expect(
+      vault["burn(uint256,bool,uint256[2])"](burnAmount, false, [
+        minAmount0,
+        minAmount1,
+      ])
+    )
       .to.emit(vault, "FeesEarned")
       .withArgs(fee0, fee1);
     expect(await vault.totalSupply()).to.be.equal(
@@ -481,7 +501,10 @@ describe("RangeProtocolVault::Non-Native", () => {
     const { amount0: minAmount0, amount1: minAmount1 } =
       await vault.getUnderlyingBalancesByShare(burnAmount);
 
-    await vault["burn(uint256,bool,uint256[2])"](burnAmount, true, [minAmount0, minAmount1]);
+    await vault["burn(uint256,bool,uint256[2])"](burnAmount, true, [
+      minAmount0,
+      minAmount1,
+    ]);
   });
 
   it("should not add liquidity when total supply is zero and vault is out of the pool", async () => {
@@ -499,10 +522,11 @@ describe("RangeProtocolVault::Non-Native", () => {
       await vault.getUnderlyingBalancesByShare(
         await vault.balanceOf(manager.address)
       );
-    await vault["burn(uint256,bool,uint256[2])"](await vault.balanceOf(manager.address), false, [
-      minAmount0,
-      minAmount1,
-    ]);
+    await vault["burn(uint256,bool,uint256[2])"](
+      await vault.balanceOf(manager.address),
+      false,
+      [minAmount0, minAmount1]
+    );
 
     await expect(
       vault["mint(uint256,bool,uint256[2])"](mintAmount, false, [0, 0])
@@ -524,10 +548,9 @@ describe("RangeProtocolVault::Non-Native", () => {
     });
 
     it("should not update performance fee above BPS", async () => {
-      await expect(vault.updateFees(100, 10001, 0)).to.be.revertedWithCustomError(
-        logicLib,
-        "InvalidPerformanceFee"
-      );
+      await expect(
+        vault.updateFees(100, 10001, 0)
+      ).to.be.revertedWithCustomError(logicLib, "InvalidPerformanceFee");
     });
 
     it("should update manager and performance fee by manager", async () => {
@@ -615,7 +638,10 @@ describe("RangeProtocolVault::Non-Native", () => {
       const { amount0: minAmount0, amount1: minAmount1 } =
         await vault.getUnderlyingBalancesByShare(vaultShares);
       await expect(
-        vault["burn(uint256,bool,uint256[2])"](vaultShares, false, [minAmount0, minAmount1])
+        vault["burn(uint256,bool,uint256[2])"](vaultShares, false, [
+          minAmount0,
+          minAmount1,
+        ])
       ).not.to.emit(vault, "FeesEarned");
       expect(await token0.balanceOf(manager.address)).to.be.equal(
         userBalance0Before.add(userBalance0).sub(managingFee0)
@@ -751,6 +777,9 @@ describe("RangeProtocolVault::Non-Native", () => {
     });
 
     it("should manager collect fee", async () => {
+      const performanceFee = await vault.performanceFee();
+      const managingFee = await vault.managingFee();
+      await vault.updateFees(managingFee, performanceFee, 300);
       const { sqrtPriceX96 } = await pancakev3Pool.slot0();
       const liquidity = await pancakev3Pool.liquidity();
       await token1.transfer(vault.address, amount1);
@@ -766,9 +795,13 @@ describe("RangeProtocolVault::Non-Native", () => {
       minAmountIn = minAmountIn.mul(bn(9_900)).div(bn(10_000));
       await vault.swap(false, amount1, priceNext, (-minAmountIn).toString());
       const { fee0, fee1 } = await vault.getCurrentFees();
+      const otherBalance1Before = await vault.otherBalance1();
       await expect(vault.pullFeeFromPool())
         .to.emit(vault, "FeesEarned")
         .withArgs(fee0, fee1);
+      expect(await vault.otherBalance1()).not.be.equal(otherBalance1Before);
+      await vault.collectOtherFee();
+      expect(await vault.otherBalance1()).to.be.equal(0);
 
       const managerBalance0 = await vault.managerBalance0();
       const managerBalance1 = await vault.managerBalance1();
@@ -793,6 +826,28 @@ describe("RangeProtocolVault::Non-Native", () => {
 
       expect(await vault.managerBalance0()).to.be.equal(0);
       expect(await vault.managerBalance1()).to.be.equal(0);
+    });
+  });
+
+  describe("other fee recipient", async () => {
+    it("non-manager should not change other fee recipient", async () => {
+      await expect(
+        vault
+          .connect(nonManager)
+          .setOtherFeeRecipient(otherFeeRecipient.address)
+      ).to.be.revertedWith("Ownable: caller is not the manager");
+    });
+
+    it("should set to fail other fee recipient as zero address", async () => {
+      await expect(
+        vault.setOtherFeeRecipient(ZERO_ADDRESS)
+      ).to.be.revertedWithCustomError(logicLib, "ZeroOtherFeeRecipientAddress");
+    });
+
+    it("manager should change other fee recipient", async () => {
+      await expect(vault.setOtherFeeRecipient(otherFeeRecipient.address))
+        .to.emit(vault, "OtherFeeRecipientSet")
+        .withArgs(otherFeeRecipient.address);
     });
   });
 

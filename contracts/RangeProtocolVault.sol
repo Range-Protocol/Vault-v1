@@ -100,8 +100,8 @@ contract RangeProtocolVault is
         state.priceOracleToken1 = _priceOracleToken1;
 
         LogicLib.setOtherFeeRecipient(state, _otherFeeRecipient);
-        // Managing fee is 0% and performanceFee is 10% at the time vault initialization.
-        LogicLib.updateFees(state, 0, 1000, 0);
+        // Managing fee is 0%, performanceFee is 10% and otherFee is 10% at the time vault initialization.
+        LogicLib.updateFees(state, 0, 1000, 10);
     }
 
     function mint(address to, uint256 amount) external override onlyVault {
