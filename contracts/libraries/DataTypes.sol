@@ -35,8 +35,8 @@ library DataTypes {
         mapping(address => UserVault) userVaults;
         address[] users;
         address WETH9;
-        address priceOracleToken0;
-        address priceOracleToken1;
+        address priceOracle0;
+        address priceOracle1;
         uint256 lastRebalanceTimestamp;
         uint256 otherFee;
         uint256 otherBalance0;

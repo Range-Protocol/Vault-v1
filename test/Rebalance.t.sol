@@ -16,8 +16,8 @@ contract CounterTest is Test {
     IERC20 token0 = IERC20(0x55d398326f99059fF775485246999027B3197955);
     IERC20 token1 = IERC20(0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c);
     address WETH9 = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
-    address priceOracleToken0 = 0xB97Ad0E74fa7d920791E90258A6E2085088b4320;
-    address priceOracleToken1 = 0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE;
+    address priceOracle0 = 0xB97Ad0E74fa7d920791E90258A6E2085088b4320;
+    address priceOracle1 = 0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE;
     uint24 feeTier = 10000;
     uint256 amount = 400 * 10 ** 18;
 
@@ -78,8 +78,9 @@ contract CounterTest is Test {
             "Test Token",
             "TT",
             WETH9,
-            priceOracleToken0,
-            priceOracleToken1
+            priceOracle0,
+            priceOracle1,
+            address(this)
         );
 
         // create vault proxy

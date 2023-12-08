@@ -510,8 +510,8 @@ library LogicLib {
         if (amount == 0) revert VaultErrors.ZeroRebalanceAmount();
         IERC20MetadataUpgradeable token0 = IERC20MetadataUpgradeable(address(state.token0));
         IERC20MetadataUpgradeable token1 = IERC20MetadataUpgradeable(address(state.token1));
-        AggregatorV3Interface oracleToken0 = AggregatorV3Interface(state.priceOracleToken0);
-        AggregatorV3Interface oracleToken1 = AggregatorV3Interface(state.priceOracleToken1);
+        AggregatorV3Interface priceOracle0 = AggregatorV3Interface(state.priceOracle0);
+        AggregatorV3Interface priceOracle1 = AggregatorV3Interface(state.priceOracle1);
 
         (zeroForOne ? token0 : token1).approve(target, amount);
         uint256 balance0Before = token0.balanceOf(address(this));
@@ -528,14 +528,14 @@ library LogicLib {
             : balance1Before - balance1After;
 
         uint256 swapPrice = (amount1Delta * 10 ** token0.decimals()) / amount0Delta;
-        (, int256 token0Price, , , ) = oracleToken0.latestRoundData();
-        (, int256 token1Price, , , ) = oracleToken1.latestRoundData();
+        (, int256 token0Price, , , ) = priceOracle0.latestRoundData();
+        (, int256 token1Price, , , ) = priceOracle1.latestRoundData();
 
         uint256 priceFromOracle = (uint256(token0Price) *
-            10 ** oracleToken1.decimals() *
+            10 ** priceOracle1.decimals() *
             10 ** token1.decimals()) /
             uint256(token1Price) /
-            10 ** oracleToken0.decimals();
+            10 ** priceOracle0.decimals();
 
         uint256 swapRatio = (priceFromOracle * 10_000) / swapPrice;
         if (swapRatio < 9900 || swapRatio > 10100) {

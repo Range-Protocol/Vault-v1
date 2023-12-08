@@ -75,8 +75,8 @@ contract RangeProtocolVault is
             string memory _name,
             string memory _symbol,
             address _WETH9,
-            address _priceOracleToken0,
-            address _priceOracleToken1,
+            address _priceOracle0,
+            address _priceOracle1,
             address _otherFeeRecipient
         ) = abi.decode(data, (address, string, string, address, address, address, address));
 
@@ -96,8 +96,8 @@ contract RangeProtocolVault is
         state.tickSpacing = _tickSpacing;
         state.factory = msg.sender;
         state.WETH9 = _WETH9;
-        state.priceOracleToken0 = _priceOracleToken0;
-        state.priceOracleToken1 = _priceOracleToken1;
+        state.priceOracle0 = _priceOracle0;
+        state.priceOracle1 = _priceOracle1;
 
         LogicLib.setOtherFeeRecipient(state, _otherFeeRecipient);
         // Managing fee is 0%, performanceFee is 10% and otherFee is 10% at the time vault initialization.

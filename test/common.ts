@@ -38,8 +38,8 @@ export const getInitializeData = (params: {
   name: string;
   symbol: string;
   WETH9: string;
-  oracleToken0: string;
-  oracleToken1: string;
+  priceOracle0: string;
+  priceOracle1: string;
   otherFeeRecipient: string;
 }): any =>
   ethers.utils.defaultAbiCoder.encode(
@@ -49,8 +49,8 @@ export const getInitializeData = (params: {
       params.name,
       params.symbol,
       params.WETH9,
-      params.oracleToken0,
-      params.oracleToken1,
+      params.priceOracle0,
+      params.priceOracle1,
       params.otherFeeRecipient
     ]
   );

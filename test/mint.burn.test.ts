@@ -76,8 +76,8 @@ describe("RangeProtocolVault: mint-burn test", () => {
       name: "TEST",
       symbol: "TEST Token",
       WETH9: WETH9,
-      oracleToken0: "0xB97Ad0E74fa7d920791E90258A6E2085088b4320",
-      oracleToken1: "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE",
+      priceOracle0: "0xB97Ad0E74fa7d920791E90258A6E2085088b4320",
+      priceOracle1: "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE",
       otherFeeRecipient: user.address
     });
     await factory.createVault(
