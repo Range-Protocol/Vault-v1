@@ -149,6 +149,15 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
         uint256[2] calldata maxAmounts
     ) external returns (uint256 remainingAmount0, uint256 remainingAmount1);
 
+    function rebalance(
+        address target,
+        bytes calldata swapData,
+        bool zeroForOne,
+        uint256 amount
+    ) external;
+
+    function pullFeeFromPool() external;
+
     function collectManager() external;
 
     function collectOtherFee() external;

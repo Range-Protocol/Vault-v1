@@ -257,7 +257,7 @@ contract RangeProtocolVault is
         bytes calldata swapData,
         bool zeroForOne,
         uint256 amount
-    ) external onlyManager {
+    ) external override onlyManager {
         LogicLib.rebalance(state, target, swapData, zeroForOne, amount);
     }
 
@@ -265,7 +265,7 @@ contract RangeProtocolVault is
      * @dev pullFeeFromPool pulls accrued fee from pancake v3 pool that position has accrued since
      * last collection.
      */
-    function pullFeeFromPool() external onlyManager {
+    function pullFeeFromPool() external override onlyManager {
         LogicLib.pullFeeFromPool(state);
     }
 
