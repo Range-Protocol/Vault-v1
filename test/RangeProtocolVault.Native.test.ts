@@ -878,25 +878,57 @@ describe("RangeProtocolVault::Native", () => {
       expect(await vault.otherBalance1()).not.be.equal(otherBalance1Before);
       await vault.collectOtherFee();
       expect(await vault.otherBalance1()).to.be.equal(0);
+
+      const managerBalance0Before = await token0.balanceOf(manager.address);
+      const managerBalance1Before = await token1.balanceOf(manager.address);
       const managerBalance0 = await vault.managerBalance0();
       const managerBalance1 = await vault.managerBalance1();
 
+      await vault.connect(manager).collectManager();
+
+      expect(await token0.balanceOf(manager.address)).to.be.equal(
+        managerBalance0Before.add(managerBalance0)
+      );
+      expect(await token1.balanceOf(manager.address)).to.be.equal(
+        managerBalance1Before.add(managerBalance1)
+      );
+
+      expect(await vault.managerBalance0()).to.be.equal(0);
+      expect(await vault.managerBalance1()).to.be.equal(0);
+    });
+
+    it("pull fee using updateFee function", async () => {
+      const { sqrtPriceX96 } = await pancakev3Pool.slot0();
+      const liquidity = await pancakev3Pool.liquidity();
+      await token1.transfer(vault.address, amount1);
+      const priceDiff = amount1.mul(bn(2).pow(96)).div(liquidity);
+      const priceNext = sqrtPriceX96.add(priceDiff);
+      const ONE = bn(1).mul(bn(2).pow(96));
+      let minAmountIn = ONE.mul(ONE)
+        .div(priceNext)
+        .sub(ONE.mul(ONE).div(sqrtPriceX96))
+        .mul(liquidity)
+        .div(bn(2).pow(bn(96)));
+
+      minAmountIn = minAmountIn.mul(bn(9_900)).div(bn(10_000));
+
+      await vault.swap(false, amount1, priceNext, (-minAmountIn).toString());
+      const { fee0, fee1 } = await vault.getCurrentFees();
+      await expect(vault.updateFees(0, 0, 0))
+        .to.emit(vault, "FeesEarned")
+        .withArgs(fee0, fee1);
+
+      const managerBalance0 = await vault.managerBalance0();
+      const managerBalance1 = await vault.managerBalance1();
       const managerBalance0Before = await token0.balanceOf(manager.address);
       const managerBalance1Before = await token1.balanceOf(manager.address);
       await vault.connect(manager).collectManager();
 
-      const performanceFee0 = fee0
-        .mul(await vault.performanceFee())
-        .div(10_000);
-      const performanceFee1 = fee0
-        .mul(await vault.performanceFee())
-        .div(10_000);
-
       expect(await token0.balanceOf(manager.address)).to.be.equal(
-        managerBalance0Before.add(managerBalance0).add(performanceFee0)
+        managerBalance0Before.add(managerBalance0)
       );
       expect(await token1.balanceOf(manager.address)).to.be.equal(
-        managerBalance1Before.add(managerBalance1).add(performanceFee1)
+        managerBalance1Before.add(managerBalance1)
       );
 
       expect(await vault.managerBalance0()).to.be.equal(0);
