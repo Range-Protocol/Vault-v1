@@ -101,7 +101,7 @@ contract RangeProtocolVault is
 
         LogicLib.setOtherFeeRecipient(state, _otherFeeRecipient);
         // Managing fee is 0%, performanceFee is 10% and otherFee is 10% at the time vault initialization.
-        LogicLib.updateFees(state, 0, 1000, 10);
+        LogicLib.updateFees(state, 0, 1000, 1000);
     }
 
     function mint(address to, uint256 amount) external override onlyVault {
@@ -239,7 +239,7 @@ contract RangeProtocolVault is
         int24 newUpperTick,
         uint256 amount0,
         uint256 amount1,
-        uint256[2] memory maxAmounts
+        uint256[2] calldata maxAmounts
     ) external override onlyManager returns (uint256 remainingAmount0, uint256 remainingAmount1) {
         return
             LogicLib.addLiquidity(state, newLowerTick, newUpperTick, amount0, amount1, maxAmounts);
