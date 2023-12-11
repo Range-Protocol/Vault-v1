@@ -554,9 +554,13 @@ describe("RangeProtocolVault::Non-Native", () => {
     });
 
     it("should update manager and performance fee by manager", async () => {
-      await expect(vault.updateFees(100, 300, 0))
+      await expect(vault.updateFees(100, 300, 1000))
         .to.emit(vault, "FeesUpdated")
-        .withArgs(100, 300, 0);
+        .withArgs(100, 300, 1000);
+
+      expect(await vault.managingFee()).to.be.equal(100);
+      expect(await vault.performanceFee()).to.be.equal(300);
+      expect(await vault.otherFee()).to.be.equal(1000);
     });
   });
 
