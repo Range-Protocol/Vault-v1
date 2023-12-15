@@ -13,7 +13,8 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
         address indexed receiver,
         uint256 mintAmount,
         uint256 amount0In,
-        uint256 amount1In
+        uint256 amount1In,
+        string refferal
     );
     event Burned(
         address indexed receiver,
@@ -119,7 +120,8 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
     function mint(
         uint256 mintAmount,
         bool depositNative,
-        uint256[2] calldata maxAmounts
+        uint256[2] calldata maxAmounts,
+        string calldata referral
     ) external payable returns (uint256 amount0, uint256 amount1);
 
     function burn(

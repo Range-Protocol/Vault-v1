@@ -147,7 +147,7 @@ describe("RangeProtocolVault::Native", () => {
 
   it("should not mint when vault is not initialized", async () => {
     await expect(
-      vault["mint(uint256,bool,uint256[2])"](111, false, [0, 0])
+      vault["mint(uint256,bool,uint256[2],string)"](111, false, [0, 0], "")
     ).to.be.revertedWithCustomError(logicLib, "MintNotStarted");
   });
 
@@ -205,7 +205,12 @@ describe("RangeProtocolVault::Native", () => {
   it("should not allow minting with zero mint amount", async () => {
     const mintAmount = 0;
     await expect(
-      vault["mint(uint256,bool,uint256[2])"](mintAmount, false, [0, 0])
+      vault["mint(uint256,bool,uint256[2],string)"](
+        mintAmount,
+        false,
+        [0, 0],
+        ""
+      )
     ).to.be.revertedWithCustomError(logicLib, "InvalidMintAmount");
   });
 
@@ -235,10 +240,12 @@ describe("RangeProtocolVault::Native", () => {
     } = await vault.getMintAmounts(amount0, amount1);
 
     await expect(
-      vault["mint(uint256,bool,uint256[2])"](mintAmount, false, [
-        maxAmount0,
-        maxAmount1,
-      ])
+      vault["mint(uint256,bool,uint256[2],string)"](
+        mintAmount,
+        false,
+        [maxAmount0, maxAmount1],
+        ""
+      )
     ).to.be.revertedWith("Pausable: paused");
     await expect(vault.unpause())
       .to.emit(vault, "Unpaused")
@@ -261,13 +268,15 @@ describe("RangeProtocolVault::Native", () => {
     expect(await token1.balanceOf(pancakev3Pool.address)).to.be.equal(0);
 
     await expect(
-      vault["mint(uint256,bool,uint256[2])"](mintAmount, false, [
-        _amount0,
-        _amount1,
-      ])
+      vault["mint(uint256,bool,uint256[2],string)"](
+        mintAmount,
+        false,
+        [_amount0, _amount1],
+        "ABC"
+      )
     )
       .to.emit(vault, "Minted")
-      .withArgs(manager.address, mintAmount, _amount0, _amount1);
+      .withArgs(manager.address, mintAmount, _amount0, _amount1, "ABC");
 
     expect(await vault.totalSupply()).to.be.equal(mintAmount);
     expect(await token0.balanceOf(pancakev3Pool.address)).to.be.equal(_amount0);
@@ -298,10 +307,11 @@ describe("RangeProtocolVault::Native", () => {
     } = await vault.getMintAmounts(amount0, amount1);
 
     await expect(
-      vault["mint(uint256,bool,uint256[2])"](
+      vault["mint(uint256,bool,uint256[2],string)"](
         mintAmount,
         false,
         [_amount0, _amount1],
+        "",
         { value: _amount1 }
       )
     ).to.be.revertedWithCustomError(logicLib, "NativeTokenSent");
@@ -317,10 +327,11 @@ describe("RangeProtocolVault::Native", () => {
     } = await vault.getMintAmounts(amount0, amount1);
 
     await expect(
-      vault["mint(uint256,bool,uint256[2])"](
+      vault["mint(uint256,bool,uint256[2],string)"](
         mintAmount,
         true,
         [_amount0, _amount1],
+        "",
         {
           value: _amount1.div(2),
         }
@@ -344,10 +355,11 @@ describe("RangeProtocolVault::Native", () => {
     );
 
     const receipt = await (
-      await vault["mint(uint256,bool,uint256[2])"](
+      await vault["mint(uint256,bool,uint256[2],string)"](
         mintAmount,
         true,
         [_amount0, _amount1],
+        "",
         {
           value: _amount1,
         }
@@ -384,13 +396,15 @@ describe("RangeProtocolVault::Native", () => {
 
     expect(await vault.totalSupply()).to.not.be.equal(0);
     await expect(
-      vault["mint(uint256,bool,uint256[2])"](mintAmount, false, [
-        _amount0,
-        _amount1,
-      ])
+      vault["mint(uint256,bool,uint256[2],string)"](
+        mintAmount,
+        false,
+        [_amount0, _amount1],
+        "XYZ"
+      )
     )
       .to.emit(vault, "Minted")
-      .withArgs(manager.address, mintAmount, _amount0, _amount1);
+      .withArgs(manager.address, mintAmount, _amount0, _amount1, "XYZ");
 
     expect(await vault.users(0)).to.be.equal(manager.address);
     expect((await vault.userVaults(manager.address)).exists).to.be.true;
@@ -519,10 +533,11 @@ describe("RangeProtocolVault::Native", () => {
       amount1: _amount1,
     } = await vault.getMintAmounts(amount0, amount1);
 
-    await vault["mint(uint256,bool,uint256[2])"](
+    await vault["mint(uint256,bool,uint256[2],string)"](
       mintAmount,
       true,
       [_amount0, _amount1],
+      "",
       {
         value: _amount1,
       }
@@ -545,10 +560,12 @@ describe("RangeProtocolVault::Native", () => {
       amount0: _amount0,
       amount1: _amount1,
     } = await vault.getMintAmounts(amount0, amount1);
-    await vault["mint(uint256,bool,uint256[2])"](mintAmount, false, [
-      _amount0,
-      _amount1,
-    ]);
+    await vault["mint(uint256,bool,uint256[2],string)"](
+      mintAmount,
+      false,
+      [_amount0, _amount1],
+      ""
+    );
 
     await vault.removeLiquidity([0, 0]);
     const { amount0: minAmount0, amount1: minAmount1 } =
@@ -562,7 +579,12 @@ describe("RangeProtocolVault::Native", () => {
     );
 
     await expect(
-      vault["mint(uint256,bool,uint256[2])"](mintAmount, false, [0, 0])
+      vault["mint(uint256,bool,uint256[2],string)"](
+        mintAmount,
+        false,
+        [0, 0],
+        ""
+      )
     ).to.be.revertedWithCustomError(logicLib, "MintNotAllowed");
   });
 
@@ -606,10 +628,12 @@ describe("RangeProtocolVault::Native", () => {
         amount0: _amount0,
         amount1: _amount1,
       } = await vault.getMintAmounts(amount0, amount1);
-      await vault["mint(uint256,bool,uint256[2])"](mintAmount, false, [
-        _amount0,
-        _amount1,
-      ]);
+      await vault["mint(uint256,bool,uint256[2],string)"](
+        mintAmount,
+        false,
+        [_amount0, _amount1],
+        ""
+      );
     });
 
     it("should not remove liquidity by non-manager", async () => {
@@ -709,10 +733,12 @@ describe("RangeProtocolVault::Native", () => {
         amount0: _amount0,
         amount1: _amount1,
       } = await vault.getMintAmounts(amount0, amount1);
-      await vault["mint(uint256,bool,uint256[2])"](mintAmount, false, [
-        _amount0,
-        _amount1,
-      ]);
+      await vault["mint(uint256,bool,uint256[2],string)"](
+        mintAmount,
+        false,
+        [_amount0, _amount1],
+        ""
+      );
       await vault.removeLiquidity([0, 0]);
     });
 

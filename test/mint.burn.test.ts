@@ -9,12 +9,7 @@ import {
   LogicLib,
   IWETH9,
 } from "../typechain";
-import {
-  bn,
-  encodePriceSqrt,
-  getInitializeData,
-  setStorageAt,
-} from "./common";
+import { bn, encodePriceSqrt, getInitializeData, setStorageAt } from "./common";
 import { expect } from "chai";
 
 let user: SignerWithAddress;
@@ -78,7 +73,7 @@ describe("RangeProtocolVault: mint-burn test", () => {
       WETH9: WETH9,
       priceOracle0: "0xB97Ad0E74fa7d920791E90258A6E2085088b4320",
       priceOracle1: "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE",
-      otherFeeRecipient: user.address
+      otherFeeRecipient: user.address,
     });
     await factory.createVault(
       token0.address,
@@ -120,7 +115,12 @@ describe("RangeProtocolVault: mint-burn test", () => {
       "balance: ",
       ethers.utils.formatEther(await vault.balanceOf(user.address))
     );
-    await vault["mint(uint256,bool,uint256[2])"](mintAmount, false, [amount0, amount1]);
+    await vault["mint(uint256,bool,uint256[2],string)"](
+      mintAmount,
+      false,
+      [amount0, amount1],
+      ""
+    );
     console.log("*** AFTER ***");
     console.log(
       "token0: ",
@@ -144,9 +144,15 @@ describe("RangeProtocolVault: mint-burn test", () => {
       maxAmount1
     );
     await expect(
-      vault["mint(uint256,bool,uint256[2])"](mintAmount, false, [amount0, amount1],{
-        value: ethers.utils.parseEther("1"),
-      })
+      vault["mint(uint256,bool,uint256[2],string)"](
+        mintAmount,
+        false,
+        [amount0, amount1],
+        "",
+        {
+          value: ethers.utils.parseEther("1"),
+        }
+      )
     ).to.be.revertedWithCustomError(logicLib, "NativeTokenSent");
   });
 
@@ -181,9 +187,17 @@ describe("RangeProtocolVault: mint-burn test", () => {
     const nativeAmount = isToken0Native ? amount0 : amount1;
     console.log("native amount: ", ethers.utils.formatEther(nativeAmount));
     const { cumulativeGasUsed, effectiveGasPrice } = await (
-      await vault.connect(user)["mint(uint256,bool,uint256[2])"](mintAmount, true, [amount0, amount1],{
-        value: nativeAmount,
-      })
+      await vault
+        .connect(user)
+        ["mint(uint256,bool,uint256[2],string)"](
+          mintAmount,
+          true,
+          [amount0, amount1],
+          "",
+          {
+            value: nativeAmount,
+          }
+        )
     ).wait();
     console.log(
       "native amount consumed in gas: ",

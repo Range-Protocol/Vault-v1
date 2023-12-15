@@ -29,7 +29,8 @@ library LogicLib {
         address indexed receiver,
         uint256 mintAmount,
         uint256 amount0In,
-        uint256 amount1In
+        uint256 amount1In,
+        string refferal
     );
     event Burned(
         address indexed receiver,
@@ -121,6 +122,7 @@ library LogicLib {
      * to compute the amount of tokens necessary to mint `mintAmount` see getMintAmounts
      * @param mintAmount The number of shares to mint
      * @param maxAmounts max amounts to add in token0 and token1.
+     * @param referral referral for the minter.
      * @return amount0 amount of token0 transferred from msg.sender to mint `mintAmount`
      * @return amount1 amount of token1 transferred from msg.sender to mint `mintAmount`
      */
@@ -128,7 +130,8 @@ library LogicLib {
         DataTypes.State storage state,
         uint256 mintAmount,
         bool depositNative,
-        uint256[2] calldata maxAmounts
+        uint256[2] calldata maxAmounts,
+        string calldata referral
     ) external returns (uint256 amount0, uint256 amount1) {
         if (!state.mintStarted) revert VaultErrors.MintNotStarted();
         if (mintAmount == 0) revert VaultErrors.InvalidMintAmount();
@@ -182,7 +185,7 @@ library LogicLib {
             );
             vars.pool.mint(address(this), vars.lowerTick, vars.upperTick, liquidityMinted, "");
         }
-        emit Minted(msg.sender, mintAmount, amount0, amount1);
+        emit Minted(msg.sender, mintAmount, amount0, amount1, referral);
 
         if (address(this).balance != 0) msg.sender.call{value: address(this).balance}("");
     }
@@ -504,7 +507,7 @@ library LogicLib {
         bool zeroForOne,
         uint256 amount
     ) external {
-        if (state.lastRebalanceTimestamp + 2 hours > block.timestamp)
+        if (state.lastRebalanceTimestamp + 15 minutes > block.timestamp)
             revert VaultErrors.RebalanceIntervalNotReached();
         state.lastRebalanceTimestamp = block.timestamp;
         if (amount == 0) revert VaultErrors.ZeroRebalanceAmount();

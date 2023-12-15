@@ -161,13 +161,15 @@ contract RangeProtocolVault is
      * to compute the amount of tokens necessary to mint `mintAmount` see getMintAmounts
      * @param mintAmount The number of shares to mint
      * @param maxAmounts max amounts to add in token0 and token1.
+     * @param referral referral for the minter.
      * @return amount0 amount of token0 transferred from msg.sender to mint `mintAmount`
      * @return amount1 amount of token1 transferred from msg.sender to mint `mintAmount`
      */
     function mint(
         uint256 mintAmount,
         bool depositNative,
-        uint256[2] calldata maxAmounts
+        uint256[2] calldata maxAmounts,
+        string calldata referral
     )
         external
         payable
@@ -176,7 +178,7 @@ contract RangeProtocolVault is
         whenNotPaused
         returns (uint256 amount0, uint256 amount1)
     {
-        return LogicLib.mint(state, mintAmount, depositNative, maxAmounts);
+        return LogicLib.mint(state, mintAmount, depositNative, maxAmounts, referral);
     }
 
     /**
