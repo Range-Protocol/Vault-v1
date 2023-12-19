@@ -240,8 +240,8 @@ library LogicLib {
         uint256 totalSupply;
         IERC20Upgradeable token0;
         IERC20Upgradeable token1;
-        uint256 managerBalance0;
-        uint256 managerBalance1;
+        uint256 feeBalance0;
+        uint256 feeBalance1;
         uint256 passiveBalance0;
         uint256 passiveBalance1;
         uint256 balanceBefore;
@@ -266,15 +266,15 @@ library LogicLib {
             vars.totalSupply,
             vars.token0,
             vars.token1,
-            vars.managerBalance0,
-            vars.managerBalance1,
+            vars.feeBalance0,
+            vars.feeBalance1,
             vars.balanceBefore
         ) = (
             vault.totalSupply(),
             state.token0,
             state.token1,
-            state.managerBalance0,
-            state.managerBalance1,
+            state.managerBalance0 + state.otherBalance0,
+            state.managerBalance1 + state.otherBalance1,
             vault.balanceOf(msg.sender)
         );
         if (state.inThePosition) {
@@ -292,10 +292,10 @@ library LogicLib {
 
             vars.passiveBalance0 = vars.token0.balanceOf(address(this)) - burn0;
             vars.passiveBalance1 = vars.token1.balanceOf(address(this)) - burn1;
-            if (vars.passiveBalance0 > vars.managerBalance0)
-                vars.passiveBalance0 -= vars.managerBalance0;
-            if (vars.passiveBalance1 > vars.managerBalance1)
-                vars.passiveBalance1 -= vars.managerBalance1;
+            if (vars.passiveBalance0 > vars.feeBalance0)
+                vars.passiveBalance0 -= vars.feeBalance0;
+            if (vars.passiveBalance1 > vars.feeBalance1)
+                vars.passiveBalance1 -= vars.feeBalance1;
 
             amount0 = burn0 + FullMath.mulDiv(vars.passiveBalance0, burnAmount, vars.totalSupply);
             amount1 = burn1 + FullMath.mulDiv(vars.passiveBalance1, burnAmount, vars.totalSupply);
@@ -733,6 +733,13 @@ library LogicLib {
         }
     }
 
+    struct UnderlyingBalanceVars {
+        uint256 passiveBalance0;
+        uint256 passiveBalance1;
+        uint256 feeBalance0;
+        uint256 feeBalance1;
+    }
+
     /**
      * @notice _getUnderlyingBalances internal function to calculate underlying balances
      * @param sqrtRatioX96 price to calculate underlying balances at
@@ -769,16 +776,21 @@ library LogicLib {
                 _feesEarned(state, false, feeGrowthInside1Last, tick, liquidity) +
                 uint256(tokensOwed1);
             (fee0, fee1) = _netPerformanceAndOtherFees(state, fee0, fee1);
+            amount0Current += fee0;
+            amount1Current += fee1;
         }
 
-        uint256 passiveBalance0 = fee0 + state.token0.balanceOf(address(this));
-        uint256 passiveBalance1 = fee1 + state.token1.balanceOf(address(this));
-        amount0Current += passiveBalance0 > state.managerBalance0
-            ? passiveBalance0 - state.managerBalance0
-            : passiveBalance0;
-        amount1Current += passiveBalance1 > state.managerBalance1
-            ? passiveBalance1 - state.managerBalance1
-            : passiveBalance1;
+        UnderlyingBalanceVars memory vars;
+        vars.passiveBalance0 = state.token0.balanceOf(address(this));
+        vars.passiveBalance1 = state.token1.balanceOf(address(this));
+        vars.feeBalance0 = state.managerBalance0 + state.otherBalance0;
+        vars.feeBalance1 = state.managerBalance1 + state.otherBalance1;
+        amount0Current += vars.passiveBalance0 > vars.feeBalance0
+            ? vars.passiveBalance0 - vars.feeBalance0
+            : vars.passiveBalance0;
+        amount1Current += vars.passiveBalance1 > vars.feeBalance1
+            ? vars.passiveBalance1 - vars.feeBalance1
+            : vars.passiveBalance1;
     }
 
     /**
