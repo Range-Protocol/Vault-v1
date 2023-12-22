@@ -107,7 +107,7 @@ contract CounterTest is Test {
         uint256[2] memory maxAmounts;
         maxAmounts[0] = amount0;
         maxAmounts[1] = amount1;
-        vault.mint(mintAmount, false, maxAmounts);
+        vault.mint(mintAmount, false, maxAmounts, "");
 
         uint256[2] memory minAmounts;
         vault.removeLiquidity(minAmounts);
