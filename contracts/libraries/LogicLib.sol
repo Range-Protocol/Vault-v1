@@ -516,7 +516,9 @@ library LogicLib {
         AggregatorV3Interface priceOracle0 = AggregatorV3Interface(state.priceOracle0);
         AggregatorV3Interface priceOracle1 = AggregatorV3Interface(state.priceOracle1);
 
-        (zeroForOne ? token0 : token1).approve(target, amount);
+        IERC20MetadataUpgradeable token = (zeroForOne ? token0 : token1);
+        token.safeApprove(target, 0);
+        token.safeApprove(target, amount);
         uint256 balance0Before = token0.balanceOf(address(this));
         uint256 balance1Before = token1.balanceOf(address(this));
         Address.functionCall(target, swapData);
