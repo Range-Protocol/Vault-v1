@@ -749,10 +749,14 @@ describe("RangeProtocolVault::Native", () => {
       await expect(
         vault
           .connect(nonManager)
-          .addLiquidity(lowerTick, upperTick, amount0, amount1, [
+          .addLiquidity(
+            lowerTick,
+            upperTick,
             amount0,
             amount1,
-          ])
+            [amount0, amount1],
+            [amount0, amount1]
+          )
       ).to.be.revertedWith("Ownable: caller is not the manager");
     });
 
@@ -766,6 +770,7 @@ describe("RangeProtocolVault::Native", () => {
           upperTick,
           amount0Current,
           amount1Current,
+          [amount0Current, amount1Current.div(2)],
           [amount0Current, amount1Current.div(2)]
         )
       ).to.be.revertedWithCustomError(logicLib, "SlippageExceedThreshold");
@@ -796,6 +801,7 @@ describe("RangeProtocolVault::Native", () => {
           upperTick,
           amount0Current,
           amount1Current,
+          [amount0Current, amount1Current],
           [amount0Current, amount1Current]
         )
       )
@@ -814,6 +820,7 @@ describe("RangeProtocolVault::Native", () => {
         upperTick,
         amount0Current,
         amount1Current,
+        [amount0Current, amount1Current],
         [amount0Current, amount1Current]
       );
 
@@ -823,6 +830,7 @@ describe("RangeProtocolVault::Native", () => {
           upperTick,
           amount0Current,
           amount1Current,
+          [amount0Current, amount1Current],
           [amount0Current, amount1Current]
         )
       ).to.be.revertedWithCustomError(logicLib, "LiquidityAlreadyAdded");

@@ -24,4 +24,5 @@ library VaultErrors {
     error ZeroRebalanceAmount();
     error RebalanceIntervalNotReached();
     error ZeroOtherFeeRecipientAddress();
+    error CannotUpgrade();
 }

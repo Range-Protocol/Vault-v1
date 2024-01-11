@@ -721,7 +721,7 @@ describe("RangeProtocolVault::Non-Native", () => {
       await expect(
         vault
           .connect(nonManager)
-          .addLiquidity(lowerTick, upperTick, amount0, amount1, [0, 0])
+          .addLiquidity(lowerTick, upperTick, amount0, amount1, [0, 0], [0, 0])
       ).to.be.revertedWith("Ownable: caller is not the manager");
     });
 
@@ -750,6 +750,7 @@ describe("RangeProtocolVault::Non-Native", () => {
           upperTick,
           amount0Current,
           amount1Current,
+          [amount0Current, amount1Current],
           [amount0Current, amount1Current]
         )
       )
@@ -768,6 +769,7 @@ describe("RangeProtocolVault::Non-Native", () => {
         upperTick,
         amount0Current,
         amount1Current,
+        [amount0Current, amount1Current],
         [amount0Current, amount1Current]
       );
 
@@ -777,6 +779,7 @@ describe("RangeProtocolVault::Non-Native", () => {
           upperTick,
           amount0Current,
           amount1Current,
+          [amount0Current, amount1Current],
           [amount0Current, amount1Current]
         )
       ).to.be.revertedWithCustomError(logicLib, "LiquidityAlreadyAdded");

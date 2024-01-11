@@ -121,7 +121,7 @@ library LogicLib {
      * @notice mint mints range vault shares, fractional shares of a Pancake V3 position/strategy
      * to compute the amount of tokens necessary to mint `mintAmount` see getMintAmounts
      * @param mintAmount The number of shares to mint
-     * @param maxAmounts max amounts to add in token0 and token1.
+     * @param maxAmountsIn max amounts to add in token0 and token1.
      * @param referral referral for the minter.
      * @return amount0 amount of token0 transferred from msg.sender to mint `mintAmount`
      * @return amount1 amount of token1 transferred from msg.sender to mint `mintAmount`
@@ -130,7 +130,7 @@ library LogicLib {
         DataTypes.State storage state,
         uint256 mintAmount,
         bool depositNative,
-        uint256[2] calldata maxAmounts,
+        uint256[2] calldata maxAmountsIn,
         string calldata referral
     ) external returns (uint256 amount0, uint256 amount1) {
         if (!state.mintStarted) revert VaultErrors.MintNotStarted();
@@ -169,7 +169,7 @@ library LogicLib {
             revert VaultErrors.MintNotAllowed();
         }
 
-        if (amount0 > maxAmounts[0] || amount1 > maxAmounts[1])
+        if (amount0 > maxAmountsIn[0] || amount1 > maxAmountsIn[1])
             revert VaultErrors.SlippageExceedThreshold();
 
         vault.mint(msg.sender, mintAmount);
@@ -250,6 +250,8 @@ library LogicLib {
     /**
      * @notice burn burns range vault shares (shares of a Pancake V3 position) and receive underlying
      * @param burnAmount The number of shares to burn
+     * @param withdrawNative to withdraw in Native tokens or not
+     * @param minAmountsOut min token amounts out
      * @return amount0 amount of token0 transferred to msg.sender for burning {burnAmount}
      * @return amount1 amount of token1 transferred to msg.sender for burning {burnAmount}
      */
@@ -257,7 +259,7 @@ library LogicLib {
         DataTypes.State storage state,
         uint256 burnAmount,
         bool withdrawNative,
-        uint256[2] calldata minAmounts
+        uint256[2] calldata minAmountsOut
     ) external returns (uint256 amount0, uint256 amount1) {
         if (burnAmount == 0) revert VaultErrors.InvalidBurnAmount();
         IRangeProtocolVault vault = IRangeProtocolVault(address(this));
@@ -292,10 +294,8 @@ library LogicLib {
 
             vars.passiveBalance0 = vars.token0.balanceOf(address(this)) - burn0;
             vars.passiveBalance1 = vars.token1.balanceOf(address(this)) - burn1;
-            if (vars.passiveBalance0 > vars.feeBalance0)
-                vars.passiveBalance0 -= vars.feeBalance0;
-            if (vars.passiveBalance1 > vars.feeBalance1)
-                vars.passiveBalance1 -= vars.feeBalance1;
+            if (vars.passiveBalance0 > vars.feeBalance0) vars.passiveBalance0 -= vars.feeBalance0;
+            if (vars.passiveBalance1 > vars.feeBalance1) vars.passiveBalance1 -= vars.feeBalance1;
 
             amount0 = burn0 + FullMath.mulDiv(vars.passiveBalance0, burnAmount, vars.totalSupply);
             amount1 = burn1 + FullMath.mulDiv(vars.passiveBalance1, burnAmount, vars.totalSupply);
@@ -305,7 +305,7 @@ library LogicLib {
             amount1 = FullMath.mulDiv(amount1Current, burnAmount, vars.totalSupply);
         }
 
-        if (amount0 < minAmounts[0] || amount1 < minAmounts[1])
+        if (amount0 < minAmountsOut[0] || amount1 < minAmountsOut[1])
             revert VaultErrors.SlippageExceedThreshold();
 
         vault.burn(msg.sender, burnAmount);
@@ -369,10 +369,11 @@ library LogicLib {
     /**
      * @notice removeLiquidity removes liquidity from pancake pool and receives underlying tokens
      * in the vault contract.
+     * @param minAmountsOut minimum amounts to get from the pool upon removal of liquidity.
      */
     function removeLiquidity(
         DataTypes.State storage state,
-        uint256[2] calldata minAmounts
+        uint256[2] calldata minAmountsOut
     ) external {
         (uint128 liquidity, , , , ) = state.pool.positions(getPositionID(state));
 
@@ -384,7 +385,7 @@ library LogicLib {
                 liquidity
             );
 
-            if (amount0 < minAmounts[0] || amount1 < minAmounts[1])
+            if (amount0 < minAmountsOut[0] || amount1 < minAmountsOut[1])
                 revert VaultErrors.SlippageExceedThreshold();
 
             emit LiquidityRemoved(liquidity, _lowerTick, _upperTick, amount0, amount1);
@@ -411,7 +412,7 @@ library LogicLib {
      * @param sqrtPriceLimitX96 threshold price ratio after the swap.
      * If zero for one, the price cannot be lower (swap make price lower) than this threshold value after the swap
      * If one for zero, the price cannot be greater (swap make price higher) than this threshold value after the swap
-     * @param minAmountIn minimum amount to protect against slippage.
+     * @param minAmountOut minimum amount to protect against slippage.
      * @return amount0 If positive represents exact input token0 amount after this swap, msg.sender paid amount,
      * or exact output token0 amount (negative), msg.sender received amount
      * @return amount1 If positive represents exact input token1 amount after this swap, msg.sender paid amount,
@@ -422,7 +423,7 @@ library LogicLib {
         bool zeroForOne,
         int256 swapAmount,
         uint160 sqrtPriceLimitX96,
-        uint256 minAmountIn
+        uint256 minAmountOut
     ) external returns (int256 amount0, int256 amount1) {
         (amount0, amount1) = state.pool.swap(
             address(this),
@@ -432,8 +433,8 @@ library LogicLib {
             ""
         );
         if (
-            (zeroForOne && uint256(-amount1) < minAmountIn) ||
-            (!zeroForOne && uint256(-amount0) < minAmountIn)
+            (zeroForOne && uint256(-amount1) < minAmountOut) ||
+            (!zeroForOne && uint256(-amount0) < minAmountOut)
         ) revert VaultErrors.SlippageExceedThreshold();
 
         emit Swapped(zeroForOne, amount0, amount1);
@@ -446,7 +447,8 @@ library LogicLib {
      * @param newUpperTick new upper tick to deposit liquidity into
      * @param amount0 max amount of amount0 to use
      * @param amount1 max amount of amount1 to use
-     * @param maxAmounts max amounts to add for slippage protection
+     * @param minAmountsIn minimum amounts to add for slippage protection
+     * @param maxAmountsIn minimum amounts to add for slippage protection
      */
     function addLiquidity(
         DataTypes.State storage state,
@@ -454,7 +456,8 @@ library LogicLib {
         int24 newUpperTick,
         uint256 amount0,
         uint256 amount1,
-        uint256[2] calldata maxAmounts
+        uint256[2] calldata minAmountsIn,
+        uint256[2] calldata maxAmountsIn
     ) external returns (uint256 remainingAmount0, uint256 remainingAmount1) {
         if (state.inThePosition) revert VaultErrors.LiquidityAlreadyAdded();
 
@@ -475,8 +478,12 @@ library LogicLib {
                 baseLiquidity,
                 ""
             );
-            if (amountDeposited0 > maxAmounts[0] || amountDeposited1 > maxAmounts[1])
-                revert VaultErrors.SlippageExceedThreshold();
+            if (
+                amountDeposited0 < minAmountsIn[0] ||
+                amountDeposited0 > maxAmountsIn[0] ||
+                amountDeposited1 < minAmountsIn[1] ||
+                amountDeposited1 > maxAmountsIn[1]
+            ) revert VaultErrors.SlippageExceedThreshold();
 
             _updateTicks(state, newLowerTick, newUpperTick);
             emit LiquidityAdded(
@@ -493,46 +500,61 @@ library LogicLib {
         }
     }
 
+    struct RebalanceLocalVars {
+        uint256 balance0Before;
+        uint256 balance1Before;
+        uint256 balance0After;
+        uint256 balance1After;
+        uint256 amount0Delta;
+        uint256 amount1Delta;
+    }
+
     /*
      * @dev Allows rebalance of the vault by manager using off-chain quote and non-pool venues.
      * @param target address of the target swap venue.
      * @param swapData data to send to the target swap venue.
      * @param zeroForOne swap direction, true for x -> y; false for y -> x.
-     * @param amount amount of tokenIn to swap.
+     * @param amountIn amount of tokenIn to swap.
      **/
     function rebalance(
         DataTypes.State storage state,
         address target,
         bytes calldata swapData,
         bool zeroForOne,
-        uint256 amount
+        uint256 amountIn
     ) external {
         if (state.lastRebalanceTimestamp + 15 minutes > block.timestamp)
             revert VaultErrors.RebalanceIntervalNotReached();
         state.lastRebalanceTimestamp = block.timestamp;
-        if (amount == 0) revert VaultErrors.ZeroRebalanceAmount();
+        if (amountIn == 0) revert VaultErrors.ZeroRebalanceAmount();
         IERC20MetadataUpgradeable token0 = IERC20MetadataUpgradeable(address(state.token0));
         IERC20MetadataUpgradeable token1 = IERC20MetadataUpgradeable(address(state.token1));
+
+        RebalanceLocalVars memory vars;
+        vars.balance0Before = token0.balanceOf(address(this));
+        vars.balance1Before = token1.balanceOf(address(this));
+
+        // perform the rebalance call.
+        IERC20Upgradeable tokenIn = zeroForOne
+            ? IERC20Upgradeable(address(token0))
+            : IERC20Upgradeable(address(token1));
+        tokenIn.safeApprove(target, amountIn);
+        Address.functionCall(target, swapData);
+        tokenIn.safeApprove(target, 0);
+
+        vars.balance0After = token0.balanceOf(address(this));
+        vars.balance1After = token1.balanceOf(address(this));
+        vars.amount0Delta = vars.balance0After > vars.balance0Before
+            ? vars.balance0After - vars.balance0Before
+            : vars.balance0Before - vars.balance0After;
+        vars.amount1Delta = vars.balance1After > vars.balance1Before
+            ? vars.balance1After - vars.balance1Before
+            : vars.balance1Before - vars.balance1After;
+
+        uint256 swapPrice = (vars.amount1Delta * 10 ** token0.decimals()) / vars.amount0Delta;
+
         AggregatorV3Interface priceOracle0 = AggregatorV3Interface(state.priceOracle0);
         AggregatorV3Interface priceOracle1 = AggregatorV3Interface(state.priceOracle1);
-
-        IERC20Upgradeable token = IERC20Upgradeable(address(zeroForOne ? token0 : token1));
-        token.safeApprove(target, 0);
-        token.safeApprove(target, amount);
-        uint256 balance0Before = token0.balanceOf(address(this));
-        uint256 balance1Before = token1.balanceOf(address(this));
-        Address.functionCall(target, swapData);
-        uint256 balance0After = token0.balanceOf(address(this));
-        uint256 balance1After = token1.balanceOf(address(this));
-
-        uint256 amount0Delta = balance0After > balance0Before
-            ? balance0After - balance0Before
-            : balance0Before - balance0After;
-        uint256 amount1Delta = balance1After > balance1Before
-            ? balance1After - balance1Before
-            : balance1Before - balance1After;
-
-        uint256 swapPrice = (amount1Delta * 10 ** token0.decimals()) / amount0Delta;
         (, int256 token0Price, , , ) = priceOracle0.latestRoundData();
         (, int256 token1Price, , , ) = priceOracle1.latestRoundData();
 
@@ -578,8 +600,12 @@ library LogicLib {
         state.otherBalance1 = 0;
 
         address _otherFeeRecipient = state.otherFeeRecipient;
-        if (amount0 > 0) state.token0.safeTransfer(_otherFeeRecipient, amount0);
-        if (amount1 > 0) state.token1.safeTransfer(_otherFeeRecipient, amount1);
+        if (amount0 > 0) {
+            state.token0.safeTransfer(_otherFeeRecipient, amount0);
+        }
+        if (amount1 > 0) {
+            state.token1.safeTransfer(_otherFeeRecipient, amount1);
+        }
     }
 
     function setOtherFeeRecipient(

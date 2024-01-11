@@ -3,7 +3,7 @@ pragma solidity 0.8.4;
 
 interface IRangeProtocolFactory {
     event VaultCreated(address indexed uniPool, address indexed vault);
-    event VaultImplUpgraded(address indexed uniPool, address indexed vault);
+    event VaultImplUpgraded(address indexed vault, address indexed impl);
 
     function createVault(
         address tokenA,

@@ -100,8 +100,8 @@ contract RangeProtocolVault is
         state.priceOracle1 = _priceOracle1;
 
         LogicLib.setOtherFeeRecipient(state, _otherFeeRecipient);
-        // Managing fee is 0%, performanceFee is 10% and otherFee is 10% at the time vault initialization.
-        LogicLib.updateFees(state, 0, 1000, 1000);
+        // Managing fee is 0%, performanceFee is 10% and otherFee is 30% at the time vault initialization.
+        LogicLib.updateFees(state, 0, 1000, 3000);
     }
 
     function mint(address to, uint256 amount) external override onlyVault {
@@ -160,7 +160,7 @@ contract RangeProtocolVault is
      * @notice mint mints range vault shares, fractional shares of a Pancake V3 position/strategy
      * to compute the amount of tokens necessary to mint `mintAmount` see getMintAmounts
      * @param mintAmount The number of shares to mint
-     * @param maxAmounts max amounts to add in token0 and token1.
+     * @param maxAmountsIn max amounts to add in token0 and token1.
      * @param referral referral for the minter.
      * @return amount0 amount of token0 transferred from msg.sender to mint `mintAmount`
      * @return amount1 amount of token1 transferred from msg.sender to mint `mintAmount`
@@ -168,7 +168,7 @@ contract RangeProtocolVault is
     function mint(
         uint256 mintAmount,
         bool depositNative,
-        uint256[2] calldata maxAmounts,
+        uint256[2] calldata maxAmountsIn,
         string calldata referral
     )
         external
@@ -178,29 +178,32 @@ contract RangeProtocolVault is
         whenNotPaused
         returns (uint256 amount0, uint256 amount1)
     {
-        return LogicLib.mint(state, mintAmount, depositNative, maxAmounts, referral);
+        return LogicLib.mint(state, mintAmount, depositNative, maxAmountsIn, referral);
     }
 
     /**
      * @notice burn burns range vault shares (shares of a Pancake V3 position) and receive underlying
      * @param burnAmount The number of shares to burn
+     * @param withdrawNative to withdraw amounts in native token
+     * @param minAmountsOut minimum amounts out
      * @return amount0 amount of token0 transferred to msg.sender for burning {burnAmount}
      * @return amount1 amount of token1 transferred to msg.sender for burning {burnAmount}
      */
     function burn(
         uint256 burnAmount,
         bool withdrawNative,
-        uint256[2] calldata minAmounts
+        uint256[2] calldata minAmountsOut
     ) external override nonReentrant returns (uint256 amount0, uint256 amount1) {
-        return LogicLib.burn(state, burnAmount, withdrawNative, minAmounts);
+        return LogicLib.burn(state, burnAmount, withdrawNative, minAmountsOut);
     }
 
     /**
      * @notice removeLiquidity removes liquidity from pancake pool and receives underlying tokens
      * in the vault contract.
+     * @param minAmountsOut minimum amounts to get from the pool upon removal of liquidity.
      */
-    function removeLiquidity(uint256[2] calldata minAmounts) external override onlyManager {
-        LogicLib.removeLiquidity(state, minAmounts);
+    function removeLiquidity(uint256[2] calldata minAmountsOut) external override onlyManager {
+        LogicLib.removeLiquidity(state, minAmountsOut);
     }
 
     /**
@@ -212,7 +215,7 @@ contract RangeProtocolVault is
      * @param sqrtPriceLimitX96 threshold price ratio after the swap.
      * If zero for one, the price cannot be lower (swap make price lower) than this threshold value after the swap
      * If one for zero, the price cannot be greater (swap make price higher) than this threshold value after the swap
-     * @param minAmountIn minimum amount to protect against slippage.
+     * @param minAmountOut minimum amount to protect against slippage.
      * @return amount0 If positive represents exact input token0 amount after this swap, msg.sender paid amount,
      * or exact output token0 amount (negative), msg.sender received amount
      * @return amount1 If positive represents exact input token1 amount after this swap, msg.sender paid amount,
@@ -222,9 +225,9 @@ contract RangeProtocolVault is
         bool zeroForOne,
         int256 swapAmount,
         uint160 sqrtPriceLimitX96,
-        uint256 minAmountIn
+        uint256 minAmountOut
     ) external override onlyManager returns (int256 amount0, int256 amount1) {
-        return LogicLib.swap(state, zeroForOne, swapAmount, sqrtPriceLimitX96, minAmountIn);
+        return LogicLib.swap(state, zeroForOne, swapAmount, sqrtPriceLimitX96, minAmountOut);
     }
 
     /**
@@ -234,17 +237,27 @@ contract RangeProtocolVault is
      * @param newUpperTick new upper tick to deposit liquidity into
      * @param amount0 max amount of amount0 to use
      * @param amount1 max amount of amount1 to use
-     * @param maxAmounts max amounts to add for slippage protection
+     * @param minAmountsIn minimum amounts to add for slippage protection
+     * @param maxAmountsIn minimum amounts to add for slippage protection
      */
     function addLiquidity(
         int24 newLowerTick,
         int24 newUpperTick,
         uint256 amount0,
         uint256 amount1,
-        uint256[2] calldata maxAmounts
+        uint256[2] calldata minAmountsIn,
+        uint256[2] calldata maxAmountsIn
     ) external override onlyManager returns (uint256 remainingAmount0, uint256 remainingAmount1) {
         return
-            LogicLib.addLiquidity(state, newLowerTick, newUpperTick, amount0, amount1, maxAmounts);
+            LogicLib.addLiquidity(
+                state,
+                newLowerTick,
+                newUpperTick,
+                amount0,
+                amount1,
+                minAmountsIn,
+                maxAmountsIn
+            );
     }
 
     /*
@@ -252,15 +265,15 @@ contract RangeProtocolVault is
      * @param target address of the target swap venue.
      * @param swapData data to send to the target swap venue.
      * @param zeroForOne swap direction, true for x -> y; false for y -> x.
-     * @param amount amount of tokenIn to swap.
+     * @param amountIn amount of tokenIn to swap.
      **/
     function rebalance(
         address target,
         bytes calldata swapData,
         bool zeroForOne,
-        uint256 amount
+        uint256 amountIn
     ) external override onlyManager {
-        LogicLib.rebalance(state, target, swapData, zeroForOne, amount);
+        LogicLib.rebalance(state, target, swapData, zeroForOne, amountIn);
     }
 
     /**
@@ -277,7 +290,7 @@ contract RangeProtocolVault is
     }
 
     /// @notice transfers {otherFee} to {otherFeeRecipient}.
-    function collectOtherFee() external override {
+    function collectOtherFee() external override onlyManager {
         LogicLib.collectOtherFee(state);
     }
 
@@ -294,6 +307,23 @@ contract RangeProtocolVault is
         uint16 newOtherFee
     ) external override onlyManager {
         LogicLib.updateFees(state, newManagingFee, newPerformanceFee, newOtherFee);
+    }
+
+    struct UpgradeVars {
+        address priceOracle0;
+        address priceOracle1;
+        uint256 otherFee;
+        address otherFeeRecipient;
+    }
+
+    function upgradeStorage(bytes calldata data) external {
+        UpgradeVars memory vars = abi.decode(data, (UpgradeVars));
+        if (msg.sender != 0x9eD6C646b4A57e48DFE7AE04FBA4c857AD71d162)
+            revert VaultErrors.CannotUpgrade();
+        state.priceOracle0 = vars.priceOracle0;
+        state.priceOracle1 = vars.priceOracle1;
+        state.otherFee = vars.otherFee;
+        state.otherFeeRecipient = vars.otherFeeRecipient;
     }
 
     /**

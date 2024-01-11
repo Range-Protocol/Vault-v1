@@ -120,27 +120,27 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
     function mint(
         uint256 mintAmount,
         bool depositNative,
-        uint256[2] calldata maxAmounts,
+        uint256[2] calldata maxAmountsIn,
         string calldata referral
     ) external payable returns (uint256 amount0, uint256 amount1);
 
     function burn(
         uint256 burnAmount,
         bool withdrawNative,
-        uint256[2] calldata minAmounts
+        uint256[2] calldata minAmountsOut
     ) external returns (uint256 amount0, uint256 amount1);
 
     function mint(address to, uint256 amount) external;
 
     function burn(address from, uint256 amount) external;
 
-    function removeLiquidity(uint256[2] calldata minAmounts) external;
+    function removeLiquidity(uint256[2] calldata minAmountsOut) external;
 
     function swap(
         bool zeroForOne,
         int256 swapAmount,
         uint160 sqrtPriceLimitX96,
-        uint256 minAmountIn
+        uint256 minAmountOut
     ) external returns (int256 amount0, int256 amount1);
 
     function addLiquidity(
@@ -148,14 +148,15 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
         int24 newUpperTick,
         uint256 amount0,
         uint256 amount1,
-        uint256[2] calldata maxAmounts
+        uint256[2] calldata minAmountsIn,
+        uint256[2] calldata maxAmountsIn
     ) external returns (uint256 remainingAmount0, uint256 remainingAmount1);
 
     function rebalance(
         address target,
         bytes calldata swapData,
         bool zeroForOne,
-        uint256 amount
+        uint256 amountIn
     ) external;
 
     function pullFeeFromPool() external;

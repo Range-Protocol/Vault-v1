@@ -9,7 +9,7 @@ import {RangeProtocolVault} from "../contracts/RangeProtocolVault.sol";
 import {VaultErrors} from "../contracts/errors/VaultErrors.sol";
 import {MockRebalanceTarget} from "../contracts/mock/MockRebalanceTarget.sol";
 
-contract CounterTest is Test {
+contract Rebalance is Test {
     uint256 bscFork;
     RangeProtocolFactory factory;
     RangeProtocolVault vault;
