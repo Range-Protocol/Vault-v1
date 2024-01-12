@@ -8,7 +8,7 @@ import {
   IPancakeV3Pool,
   RangeProtocolVault,
   RangeProtocolFactory,
-  LogicLib,
+  VaultLib,
 } from "../typechain";
 import { bn, getInitializeData, ZERO_ADDRESS } from "./common";
 import { Contract } from "ethers";
@@ -17,7 +17,7 @@ let factory: RangeProtocolFactory;
 let vaultImpl: RangeProtocolVault;
 let pancakeV3Factory: IPancakeV3Factory;
 let pancakev3Pool: IPancakeV3Pool;
-let logicLib: LogicLib;
+let vaultLib: VaultLib;
 let token0: IERC20;
 let token1: IERC20;
 let owner: SignerWithAddress;
@@ -61,16 +61,16 @@ describe("RangeProtocolFactory", () => {
       await pancakeV3Factory.getPool(token0.address, token1.address, poolFee)
     )) as IPancakeV3Pool;
 
-    const LogicLib = await ethers.getContractFactory(
-      "LogicLib"
+    const VaultLib = await ethers.getContractFactory(
+      "VaultLib"
     );
-    logicLib = await LogicLib.deploy();
+    vaultLib = await VaultLib.deploy();
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const RangeProtocolVault = await ethers.getContractFactory(
       "RangeProtocolVault",
       {
         libraries: {
-          LogicLib: logicLib.address,
+          VaultLib: vaultLib.address,
         },
       }
     );

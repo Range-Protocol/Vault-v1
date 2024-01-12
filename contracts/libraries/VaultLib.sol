@@ -16,14 +16,14 @@ import {VaultErrors} from "../errors/VaultErrors.sol";
 import {IWETH9} from "../interfaces/IWETH9.sol";
 import {DataTypes} from "../libraries/DataTypes.sol";
 
-library LogicLib {
+library VaultLib {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using TickMath for int24;
 
     /// Performance fee cannot be set more than 20% of the fee earned from pancake v3 pool.
-    uint16 public constant MAX_PERFORMANCE_FEE_BPS = 2000;
+    uint16 private constant MAX_PERFORMANCE_FEE_BPS = 2000;
     /// Managing fee cannot be set more than 1% of the total fee earned.
-    uint16 public constant MAX_MANAGING_FEE_BPS = 100;
+    uint16 private constant MAX_MANAGING_FEE_BPS = 100;
 
     event Minted(
         address indexed receiver,
@@ -376,7 +376,6 @@ library LogicLib {
         uint256[2] calldata minAmountsOut
     ) external {
         (uint128 liquidity, , , , ) = state.pool.positions(getPositionID(state));
-
         if (liquidity > 0) {
             int24 _lowerTick = state.lowerTick;
             int24 _upperTick = state.upperTick;
@@ -449,6 +448,8 @@ library LogicLib {
      * @param amount1 max amount of amount1 to use
      * @param minAmountsIn minimum amounts to add for slippage protection
      * @param maxAmountsIn minimum amounts to add for slippage protection
+     * @return remainingAmount0 remaining amount from amount0
+     * @return remainingAmount1 remaining amount from amount1
      */
     function addLiquidity(
         DataTypes.State storage state,
@@ -697,34 +698,6 @@ library LogicLib {
     }
 
     /**
-     * @notice returns array of current user vaults. This function is only intended to be called off-chain.
-     * @param fromIdx start index to fetch the user vaults info from.
-     * @param toIdx end index to fetch the user vault to.
-     */
-    function getUserVaults(
-        DataTypes.State storage state,
-        uint256 fromIdx,
-        uint256 toIdx
-    ) external view returns (DataTypes.UserVaultInfo[] memory) {
-        if (fromIdx == 0 && toIdx == 0) {
-            toIdx = state.users.length;
-        }
-        DataTypes.UserVaultInfo[] memory usersVaultInfo = new DataTypes.UserVaultInfo[](
-            toIdx - fromIdx
-        );
-        uint256 count;
-        for (uint256 i = fromIdx; i < toIdx; i++) {
-            DataTypes.UserVault memory userVault = state.userVaults[state.users[i]];
-            usersVaultInfo[count++] = DataTypes.UserVaultInfo({
-                user: state.users[i],
-                token0: userVault.token0,
-                token1: userVault.token1
-            });
-        }
-        return usersVaultInfo;
-    }
-
-    /**
      * @notice getPositionID returns the position id of the vault in pancake pool
      * @return positionID position id of the vault in pancake pool
      */
@@ -761,7 +734,7 @@ library LogicLib {
         }
     }
 
-    struct UnderlyingBalanceVars {
+    struct UnderlyingBalanceLocalVars {
         uint256 passiveBalance0;
         uint256 passiveBalance1;
         uint256 feeBalance0;
@@ -808,7 +781,7 @@ library LogicLib {
             amount1Current += fee1;
         }
 
-        UnderlyingBalanceVars memory vars;
+        UnderlyingBalanceLocalVars memory vars;
         vars.passiveBalance0 = state.token0.balanceOf(address(this));
         vars.passiveBalance1 = state.token1.balanceOf(address(this));
         vars.feeBalance0 = state.managerBalance0 + state.otherBalance0;
@@ -1095,6 +1068,7 @@ library LogicLib {
      * and managing fee.
      * @param newManagingFee new managing fee to set.
      * @param newPerformanceFee new performance fee to set.
+     * @param newOtherFee new other fee to set.
      */
     function _updateFees(
         DataTypes.State storage state,

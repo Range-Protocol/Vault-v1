@@ -6,7 +6,7 @@ import {
   IPancakeV3Pool,
   RangeProtocolVault,
   RangeProtocolFactory,
-  LogicLib,
+  VaultLib,
   IWETH9,
 } from "../typechain";
 import { bn, encodePriceSqrt, getInitializeData, setStorageAt } from "./common";
@@ -17,7 +17,7 @@ let factory: RangeProtocolFactory;
 let vault: RangeProtocolVault;
 let token0: IERC20;
 let token1: IERC20;
-let logicLib: LogicLib;
+let vaultLib: VaultLib;
 const WETH9 = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
 const poolFee = 10000;
 let isToken0Native: boolean;
@@ -56,13 +56,13 @@ describe("RangeProtocolVault: mint-burn test", () => {
     )) as IPancakeV3Pool;
     await pool.initialize(encodePriceSqrt("1", "1"));
     await pool.increaseObservationCardinalityNext("15");
-    logicLib = (await (
-      await ethers.getContractFactory("LogicLib")
-    ).deploy()) as LogicLib;
+    vaultLib = (await (
+      await ethers.getContractFactory("VaultLib")
+    ).deploy()) as VaultLib;
     const vaultImpl = await (
       await ethers.getContractFactory("RangeProtocolVault", {
         libraries: {
-          LogicLib: logicLib.address,
+          VaultLib: vaultLib.address,
         },
       })
     ).deploy();
@@ -153,7 +153,7 @@ describe("RangeProtocolVault: mint-burn test", () => {
           value: ethers.utils.parseEther("1"),
         }
       )
-    ).to.be.revertedWithCustomError(logicLib, "NativeTokenSent");
+    ).to.be.revertedWithCustomError(vaultLib, "NativeTokenSent");
   });
 
   it("should mint with native asset", async () => {

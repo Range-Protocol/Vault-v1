@@ -3,7 +3,6 @@ pragma solidity 0.8.4;
 
 import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import {IPancakeV3Pool} from "../pancake/interfaces/IPancakeV3Pool.sol";
-import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 library DataTypes {
     struct UserVault {

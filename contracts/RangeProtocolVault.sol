@@ -8,12 +8,11 @@ import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import {IERC20MetadataUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import {IPancakeV3Pool} from "./pancake/interfaces/IPancakeV3Pool.sol";
 import {IRangeProtocolVault} from "./interfaces/IRangeProtocolVault.sol";
 import {RangeProtocolVaultStorage} from "./RangeProtocolVaultStorage.sol";
 import {VaultErrors} from "./errors/VaultErrors.sol";
-import {LogicLib} from "./libraries/LogicLib.sol";
+import {VaultLib} from "./libraries/VaultLib.sol";
 
 /**
  * @dev Mars@RangeProtocol
@@ -43,7 +42,7 @@ contract RangeProtocolVault is
     IRangeProtocolVault,
     RangeProtocolVaultStorage
 {
-    // @notice restricts the call by self. It used to restrict the allowed calls only from the LogicLib.
+    // @notice restricts the call by self. It used to restrict the allowed calls only from the VaultLib.
     modifier onlyVault() {
         if (msg.sender != address(this)) revert VaultErrors.OnlyVaultAllowed();
         _;
@@ -98,16 +97,26 @@ contract RangeProtocolVault is
         state.WETH9 = _WETH9;
         state.priceOracle0 = _priceOracle0;
         state.priceOracle1 = _priceOracle1;
+        VaultLib.setOtherFeeRecipient(state, _otherFeeRecipient);
 
-        LogicLib.setOtherFeeRecipient(state, _otherFeeRecipient);
         // Managing fee is 0%, performanceFee is 10% and otherFee is 30% at the time vault initialization.
-        LogicLib.updateFees(state, 0, 1000, 3000);
+        VaultLib.updateFees(state, 0, 1000, 3000);
     }
 
+    /**
+     * @dev mints vault shares {amount} to {to} address.
+     * requirements:
+     * - only vault is allowed to call it (intends to be called by the library)
+     */
     function mint(address to, uint256 amount) external override onlyVault {
         _mint(to, amount);
     }
 
+    /**
+     * @dev burns vault shares {amount} from {from} address.
+     * requirements:
+     * - only vault is allowed to call it (intends to be called by the library)
+     */
     function burn(address from, uint256 amount) external override onlyVault {
         _burn(from, amount);
     }
@@ -120,7 +129,7 @@ contract RangeProtocolVault is
      * @param _upperTick upperTick to set
      */
     function updateTicks(int24 _lowerTick, int24 _upperTick) external override onlyManager {
-        LogicLib.updateTicks(state, _lowerTick, _upperTick);
+        VaultLib.updateTicks(state, _lowerTick, _upperTick);
     }
 
     /**
@@ -144,7 +153,7 @@ contract RangeProtocolVault is
         uint256 amount1Owed,
         bytes calldata
     ) external override {
-        LogicLib.pancakeV3MintCallback(state, amount0Owed, amount1Owed, "");
+        VaultLib.pancakeV3MintCallback(state, amount0Owed, amount1Owed, "");
     }
 
     /// @notice pancakeV3SwapCallback Pancake v3 callback fn, called back on pool.swap
@@ -153,7 +162,7 @@ contract RangeProtocolVault is
         int256 amount1Delta,
         bytes calldata
     ) external override {
-        LogicLib.pancakeV3SwapCallback(state, amount0Delta, amount1Delta, "");
+        VaultLib.pancakeV3SwapCallback(state, amount0Delta, amount1Delta, "");
     }
 
     /**
@@ -178,7 +187,7 @@ contract RangeProtocolVault is
         whenNotPaused
         returns (uint256 amount0, uint256 amount1)
     {
-        return LogicLib.mint(state, mintAmount, depositNative, maxAmountsIn, referral);
+        return VaultLib.mint(state, mintAmount, depositNative, maxAmountsIn, referral);
     }
 
     /**
@@ -194,7 +203,7 @@ contract RangeProtocolVault is
         bool withdrawNative,
         uint256[2] calldata minAmountsOut
     ) external override nonReentrant returns (uint256 amount0, uint256 amount1) {
-        return LogicLib.burn(state, burnAmount, withdrawNative, minAmountsOut);
+        return VaultLib.burn(state, burnAmount, withdrawNative, minAmountsOut);
     }
 
     /**
@@ -203,7 +212,7 @@ contract RangeProtocolVault is
      * @param minAmountsOut minimum amounts to get from the pool upon removal of liquidity.
      */
     function removeLiquidity(uint256[2] calldata minAmountsOut) external override onlyManager {
-        LogicLib.removeLiquidity(state, minAmountsOut);
+        VaultLib.removeLiquidity(state, minAmountsOut);
     }
 
     /**
@@ -227,7 +236,7 @@ contract RangeProtocolVault is
         uint160 sqrtPriceLimitX96,
         uint256 minAmountOut
     ) external override onlyManager returns (int256 amount0, int256 amount1) {
-        return LogicLib.swap(state, zeroForOne, swapAmount, sqrtPriceLimitX96, minAmountOut);
+        return VaultLib.swap(state, zeroForOne, swapAmount, sqrtPriceLimitX96, minAmountOut);
     }
 
     /**
@@ -238,7 +247,9 @@ contract RangeProtocolVault is
      * @param amount0 max amount of amount0 to use
      * @param amount1 max amount of amount1 to use
      * @param minAmountsIn minimum amounts to add for slippage protection
-     * @param maxAmountsIn minimum amounts to add for slippage protection
+     * @param maxAmountsIn maximum amounts to add for slippage protection
+     * @return remainingAmount0 remaining amount from amount0
+     * @return remainingAmount1 remaining amount from amount1
      */
     function addLiquidity(
         int24 newLowerTick,
@@ -249,7 +260,7 @@ contract RangeProtocolVault is
         uint256[2] calldata maxAmountsIn
     ) external override onlyManager returns (uint256 remainingAmount0, uint256 remainingAmount1) {
         return
-            LogicLib.addLiquidity(
+            VaultLib.addLiquidity(
                 state,
                 newLowerTick,
                 newUpperTick,
@@ -273,7 +284,7 @@ contract RangeProtocolVault is
         bool zeroForOne,
         uint256 amountIn
     ) external override onlyManager {
-        LogicLib.rebalance(state, target, swapData, zeroForOne, amountIn);
+        VaultLib.rebalance(state, target, swapData, zeroForOne, amountIn);
     }
 
     /**
@@ -281,21 +292,21 @@ contract RangeProtocolVault is
      * last collection.
      */
     function pullFeeFromPool() external override onlyManager {
-        LogicLib.pullFeeFromPool(state);
+        VaultLib.pullFeeFromPool(state);
     }
 
     /// @notice collectManager collects manager fees accrued
     function collectManager() external override onlyManager {
-        LogicLib.collectManager(state, manager());
+        VaultLib.collectManager(state, manager());
     }
 
     /// @notice transfers {otherFee} to {otherFeeRecipient}.
     function collectOtherFee() external override onlyManager {
-        LogicLib.collectOtherFee(state);
+        VaultLib.collectOtherFee(state);
     }
 
     function setOtherFeeRecipient(address newOtherFeeRecipient) external onlyManager {
-        LogicLib.setOtherFeeRecipient(state, newOtherFeeRecipient);
+        VaultLib.setOtherFeeRecipient(state, newOtherFeeRecipient);
     }
 
     /**
@@ -306,25 +317,25 @@ contract RangeProtocolVault is
         uint16 newPerformanceFee,
         uint16 newOtherFee
     ) external override onlyManager {
-        LogicLib.updateFees(state, newManagingFee, newPerformanceFee, newOtherFee);
+        VaultLib.updateFees(state, newManagingFee, newPerformanceFee, newOtherFee);
     }
 
-    struct UpgradeVars {
-        address priceOracle0;
-        address priceOracle1;
-        uint256 otherFee;
-        address otherFeeRecipient;
-    }
-
-    function upgradeStorage(bytes calldata data) external {
-        UpgradeVars memory vars = abi.decode(data, (UpgradeVars));
-        if (msg.sender != 0x9eD6C646b4A57e48DFE7AE04FBA4c857AD71d162)
-            revert VaultErrors.CannotUpgrade();
-        state.priceOracle0 = vars.priceOracle0;
-        state.priceOracle1 = vars.priceOracle1;
-        state.otherFee = vars.otherFee;
-        state.otherFeeRecipient = vars.otherFeeRecipient;
-    }
+//    struct UpgradeVars {
+//        address priceOracle0;
+//        address priceOracle1;
+//        uint256 otherFee;
+//        address otherFeeRecipient;
+//    }
+//
+//    function upgradeStorage(bytes calldata data) external {
+//        UpgradeVars memory vars = abi.decode(data, (UpgradeVars));
+//        if (msg.sender != 0x9eD6C646b4A57e48DFE7AE04FBA4c857AD71d162)
+//            revert VaultErrors.CannotUpgrade();
+//        state.priceOracle0 = vars.priceOracle0;
+//        state.priceOracle1 = vars.priceOracle1;
+//        state.otherFee = vars.otherFee;
+//        state.otherFeeRecipient = vars.otherFeeRecipient;
+//    }
 
     /**
      * @notice compute maximum shares that can be minted from `amount0Max` and `amount1Max`
@@ -338,7 +349,7 @@ contract RangeProtocolVault is
         uint256 amount0Max,
         uint256 amount1Max
     ) external view override returns (uint256 amount0, uint256 amount1, uint256 mintAmount) {
-        return LogicLib.getMintAmounts(state, amount0Max, amount1Max);
+        return VaultLib.getMintAmounts(state, amount0Max, amount1Max);
     }
 
     /**
@@ -347,7 +358,7 @@ contract RangeProtocolVault is
      * @return fee1 uncollected fee in token1
      */
     function getCurrentFees() external view override returns (uint256 fee0, uint256 fee1) {
-        return LogicLib.getCurrentFees(state);
+        return VaultLib.getCurrentFees(state);
     }
 
     /**
@@ -355,7 +366,7 @@ contract RangeProtocolVault is
      * @return positionID position id of the vault in pancake pool
      */
     function getPositionID() public view override returns (bytes32 positionID) {
-        return LogicLib.getPositionID(state);
+        return VaultLib.getPositionID(state);
     }
 
     /**
@@ -371,13 +382,13 @@ contract RangeProtocolVault is
         override
         returns (uint256 amount0Current, uint256 amount1Current)
     {
-        return LogicLib.getUnderlyingBalances(state);
+        return VaultLib.getUnderlyingBalances(state);
     }
 
     function getUnderlyingBalancesByShare(
         uint256 shares
     ) external view returns (uint256 amount0, uint256 amount1) {
-        return LogicLib.getUnderlyingBalancesByShare(state, shares);
+        return VaultLib.getUnderlyingBalancesByShare(state, shares);
     }
 
     /**
@@ -398,6 +409,6 @@ contract RangeProtocolVault is
      */
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal override {
         super._beforeTokenTransfer(from, to, amount);
-        LogicLib._beforeTokenTransfer(state, from, to, amount);
+        VaultLib._beforeTokenTransfer(state, from, to, amount);
     }
 }

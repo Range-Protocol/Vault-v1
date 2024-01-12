@@ -76,6 +76,11 @@ abstract contract RangeProtocolVaultStorage is IRangeProtocolVault {
         return state.WETH9;
     }
 
+    /**
+     * @notice returns array of current user vaults. This function is only intended to be called off-chain.
+     * @param fromIdx start index to fetch the user vaults info from.
+     * @param toIdx end index to fetch the user vault to.
+     */
     function getUserVaults(
         uint256 fromIdx,
         uint256 toIdx

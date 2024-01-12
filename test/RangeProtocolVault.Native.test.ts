@@ -8,7 +8,7 @@ import {
   IPancakeV3Pool,
   RangeProtocolVault,
   RangeProtocolFactory,
-  LogicLib,
+  VaultLib,
   IWETH9,
 } from "../typechain";
 import {
@@ -28,7 +28,7 @@ let vaultImpl: RangeProtocolVault;
 let vault: RangeProtocolVault;
 let pancakeV3Factory: IPancakeV3Factory;
 let pancakev3Pool: IPancakeV3Pool;
-let logicLib: LogicLib;
+let vaultLib: VaultLib;
 let token0: IERC20;
 let token1: IERC20;
 let manager: SignerWithAddress;
@@ -106,14 +106,14 @@ describe("RangeProtocolVault::Native", () => {
       otherFeeRecipient: manager.address,
     });
 
-    const LogicLib = await ethers.getContractFactory("LogicLib");
-    logicLib = await LogicLib.deploy();
+    const VaultLib = await ethers.getContractFactory("VaultLib");
+    vaultLib = await VaultLib.deploy();
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const RangeProtocolVault = await ethers.getContractFactory(
       "RangeProtocolVault",
       {
         libraries: {
-          LogicLib: logicLib.address,
+          VaultLib: vaultLib.address,
         },
       }
     );
@@ -148,7 +148,7 @@ describe("RangeProtocolVault::Native", () => {
   it("should not mint when vault is not initialized", async () => {
     await expect(
       vault["mint(uint256,bool,uint256[2],string)"](111, false, [0, 0], "")
-    ).to.be.revertedWithCustomError(logicLib, "MintNotStarted");
+    ).to.be.revertedWithCustomError(vaultLib, "MintNotStarted");
   });
 
   it("non-manager should not be able to updateTicks", async () => {
@@ -161,21 +161,21 @@ describe("RangeProtocolVault::Native", () => {
   it("should not updateTicks with out of range ticks", async () => {
     await expect(
       vault.connect(manager).updateTicks(-887273, 0)
-    ).to.be.revertedWithCustomError(logicLib, "TicksOutOfRange");
+    ).to.be.revertedWithCustomError(vaultLib, "TicksOutOfRange");
 
     await expect(
       vault.connect(manager).updateTicks(0, 887273)
-    ).to.be.revertedWithCustomError(logicLib, "TicksOutOfRange");
+    ).to.be.revertedWithCustomError(vaultLib, "TicksOutOfRange");
   });
 
   it.skip("should not updateTicks with ticks not following tick spacing", async () => {
     await expect(
       vault.connect(manager).updateTicks(0, 1)
-    ).to.be.revertedWithCustomError(logicLib, "InvalidTicksSpacing");
+    ).to.be.revertedWithCustomError(vaultLib, "InvalidTicksSpacing");
 
     await expect(
       vault.connect(manager).updateTicks(1, 0)
-    ).to.be.revertedWithCustomError(logicLib, "InvalidTicksSpacing");
+    ).to.be.revertedWithCustomError(vaultLib, "InvalidTicksSpacing");
   });
 
   it("manager should be able to updateTicks", async () => {
@@ -211,7 +211,7 @@ describe("RangeProtocolVault::Native", () => {
         [0, 0],
         ""
       )
-    ).to.be.revertedWithCustomError(logicLib, "InvalidMintAmount");
+    ).to.be.revertedWithCustomError(vaultLib, "InvalidMintAmount");
   });
 
   it("non-vault address should not be able to call mint function", async () => {
@@ -314,7 +314,7 @@ describe("RangeProtocolVault::Native", () => {
         "",
         { value: _amount1 }
       )
-    ).to.be.revertedWithCustomError(logicLib, "NativeTokenSent");
+    ).to.be.revertedWithCustomError(vaultLib, "NativeTokenSent");
   });
 
   it("should not mint when less than required native token is supplied", async () => {
@@ -336,7 +336,7 @@ describe("RangeProtocolVault::Native", () => {
           value: _amount1.div(2),
         }
       )
-    ).to.be.revertedWithCustomError(logicLib, "InsufficientNativeTokenAmount");
+    ).to.be.revertedWithCustomError(vaultLib, "InsufficientNativeTokenAmount");
   });
 
   it("should mint with native tokens", async () => {
@@ -585,7 +585,7 @@ describe("RangeProtocolVault::Native", () => {
         [0, 0],
         ""
       )
-    ).to.be.revertedWithCustomError(logicLib, "MintNotAllowed");
+    ).to.be.revertedWithCustomError(vaultLib, "MintNotAllowed");
   });
 
   describe("Manager Fee", () => {
@@ -597,7 +597,7 @@ describe("RangeProtocolVault::Native", () => {
 
     it("should not update managing fee above BPS", async () => {
       await expect(vault.updateFees(101, 100, 0)).to.be.revertedWithCustomError(
-        logicLib,
+        vaultLib,
         "InvalidManagingFee"
       );
     });
@@ -605,7 +605,7 @@ describe("RangeProtocolVault::Native", () => {
     it("should not update performance fee above BPS", async () => {
       await expect(
         vault.updateFees(100, 10001, 0)
-      ).to.be.revertedWithCustomError(logicLib, "InvalidPerformanceFee");
+      ).to.be.revertedWithCustomError(vaultLib, "InvalidPerformanceFee");
     });
 
     it("should update manager and performance fee by manager", async () => {
@@ -773,7 +773,7 @@ describe("RangeProtocolVault::Native", () => {
           [amount0Current, amount1Current.div(2)],
           [amount0Current, amount1Current.div(2)]
         )
-      ).to.be.revertedWithCustomError(logicLib, "SlippageExceedThreshold");
+      ).to.be.revertedWithCustomError(vaultLib, "SlippageExceedThreshold");
     });
 
     it("should add liquidity by manager", async () => {
@@ -833,7 +833,7 @@ describe("RangeProtocolVault::Native", () => {
           [amount0Current, amount1Current],
           [amount0Current, amount1Current]
         )
-      ).to.be.revertedWithCustomError(logicLib, "LiquidityAlreadyAdded");
+      ).to.be.revertedWithCustomError(vaultLib, "LiquidityAlreadyAdded");
     });
   });
 
@@ -854,7 +854,7 @@ describe("RangeProtocolVault::Native", () => {
 
       await expect(
         vault.swap(false, amount1, priceNext, (-minAmountIn).toString())
-      ).to.be.revertedWithCustomError(logicLib, "SlippageExceedThreshold");
+      ).to.be.revertedWithCustomError(vaultLib, "SlippageExceedThreshold");
     });
   });
 
@@ -982,7 +982,7 @@ describe("RangeProtocolVault::Native", () => {
     it("should set to fail other fee recipient as zero address", async () => {
       await expect(
         vault.setOtherFeeRecipient(ZERO_ADDRESS)
-      ).to.be.revertedWithCustomError(logicLib, "ZeroOtherFeeRecipientAddress");
+      ).to.be.revertedWithCustomError(vaultLib, "ZeroOtherFeeRecipientAddress");
     });
 
     it("manager should change other fee recipient", async () => {
@@ -999,7 +999,7 @@ describe("RangeProtocolVault::Native", () => {
         "RangeProtocolVault",
         {
           libraries: {
-            LogicLib: logicLib.address,
+            VaultLib: vaultLib.address,
           },
         }
       );
@@ -1032,7 +1032,7 @@ describe("RangeProtocolVault::Native", () => {
         "RangeProtocolVault",
         {
           libraries: {
-            LogicLib: logicLib.address,
+            VaultLib: vaultLib.address,
           },
         }
       );

@@ -7,13 +7,13 @@ async function main() {
 	const RangeProtocolFactory = await ethers.getContractFactory(
 		"RangeProtocolFactory"
 	);
-	const LogicLib = await ethers.getContractFactory("LogicLib");
-	const logicLib = await LogicLib.deploy();
+	const VaultLib = await ethers.getContractFactory("VaultLib");
+	const vaultLib = await VaultLib.deploy();
 	const RangeProtocolVault = await ethers.getContractFactory(
 		"RangeProtocolVault",
 		{
 			libraries: {
-				LogicLib: logicLib.address,
+				VaultLib: vaultLib.address,
 			},
 		}
 	);
