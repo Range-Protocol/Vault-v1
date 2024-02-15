@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity >=0.5.0;
+pragma solidity 0.8.4;
 
 import {FullMath} from "./FullMath.sol";
-import "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
+import {FixedPoint96} from "./FixedPoint96.sol";
 
 /// @title Liquidity amount functions
 /// @notice Provides functions for computing liquidity amounts from token amounts and prices
