@@ -1,116 +1,138 @@
 //SPDX-License-Identifier: MIT
 pragma solidity 0.8.4;
 
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
-import "@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolImmutables.sol";
-import "./RangeProtocolVault.sol";
-import "./interfaces/IRangeProtocolFactory.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {IPancakeV3Factory} from "./pancake/interfaces/IPancakeV3Factory.sol";
+import {IRangeProtocolFactory} from "./interfaces/IRangeProtocolFactory.sol";
+import {FactoryErrors} from "./errors/FactoryErrors.sol";
 
-
-/// @dev Mars@RangeProtocol
+/**
+ * @dev Mars@RangeProtocol
+ * @notice RangeProtocolFactory deploys and upgrades proxies for Range Protocol vault contracts.
+ * Owner can deploy and upgrade vault contracts.
+ */
 contract RangeProtocolFactory is IRangeProtocolFactory, Ownable {
-    /// @notice Uniswap v3 factory
+    bytes4 public constant INIT_SELECTOR =
+        bytes4(keccak256(bytes("initialize(address,int24,bytes)")));
+
+    bytes4 public constant UPGRADE_SELECTOR = bytes4(keccak256(bytes("upgradeTo(address)")));
+
+    /// @notice Pancake v3 factory
     address public immutable factory;
 
     /// @notice all deployed vault instances
-    address[] public allVaults;
-    // toke0, token1, fee -> RangeProtocol vault address
-    mapping(address => mapping(address => mapping(uint24 => address)))
-        public vaults;
+    address[] private _vaultsList;
 
-    constructor(address _uniswapV3Factory) Ownable(msg.sender) {
-        factory = _uniswapV3Factory;
+    constructor(address _pancakeV3Factory) Ownable() {
+        factory = _pancakeV3Factory;
     }
 
-    /// @notice deployVault creates a new instance of a Vault on a specified UniswapV3Pool
-    /// @param tokenA one of the tokens in the uniswap pair
-    /// @param tokenB the other token in the uniswap pair
-    /// @param fee fee tier of the uniswap pair
-    /// @param manager address of the managing account
-    /// @param managerFee proportion of earned fees that go to pool manager in Basis Points
-    /// @param name name of the range vault
-    /// @param symbol symbol of the range vault
+    // @notice createVault creates a ERC1967 proxy instance for the given implementation of vault contract
+    // @param tokenA one of the tokens in the pancake pair
+    // @param tokenB the other token in the pancake pair
+    // @param fee fee tier of the pancake pair
+    // @param implementation address of the implementation
+    // @param configData additional data associated with the specific implementation of vault
     function createVault(
         address tokenA,
         address tokenB,
         uint24 fee,
-        address treasury,
-        address manager,
-        uint16 managerFee,
-        string memory name,
-        string memory symbol
-    ) external override onlyManager {
-        address pool = IUniswapV3Factory(factory).getPool(
-            tokenA,
-            tokenB,
-            fee
-        );
-        if (pool == address(0x0)) revert ZeroPoolAddress();
-        address vault = deploy(
-            pool,
-            tokenA,
-            tokenB,
-            fee,
-            treasury,
-            manager,
-            managerFee,
-            name,
-            symbol
-        );
+        address implementation,
+        bytes memory data
+    ) external override onlyOwner {
+        address pool = IPancakeV3Factory(factory).getPool(tokenA, tokenB, fee);
+        if (pool == address(0x0)) revert FactoryErrors.ZeroPoolAddress();
+        address vault = _createVault(tokenA, tokenB, fee, pool, implementation, data);
 
-        emit VaultCreated(
-            pool,
-            manager,
-            vault
-        );
+        emit VaultCreated(pool, vault);
     }
 
-    function deploy(
-        address pool,
+    /**
+     * @notice upgradeVaults it allows upgrading the implementation contracts for deployed vault proxies.
+     * only owner of the factory contract can call it. Internally calls _upgradeVault.
+     * @param _vaults list of vaults to upgrade
+     * @param _impls new implementation contracts of corresponding vaults
+     */
+    function upgradeVaults(
+        address[] calldata _vaults,
+        address[] calldata _impls
+    ) external override onlyOwner {
+        if (_vaults.length != _impls.length) revert FactoryErrors.MismatchedVaultsAndImplsLength();
+
+        for (uint256 i = 0; i < _vaults.length; i++) {
+            _upgradeVault(_vaults[i], _impls[i]);
+        }
+    }
+
+    /**
+     * @notice upgradeVault it allows upgrading the implementation contract for deployed vault proxy.
+     * only owner of the factory contract can call it. Internally calls _upgradeVault.
+     * @param _vault a vault to upgrade
+     * @param _impl new implementation contract of corresponding vault
+     */
+    function upgradeVault(address _vault, address _impl) public override onlyOwner {
+        _upgradeVault(_vault, _impl);
+    }
+
+    /**
+     * @notice returns the vaults addresses based on the provided indexes
+     * @param startIdx the index in vaults to start retrieval from.
+     * @param endIdx the index in vaults to end retrieval from.
+     * @return vaultList list of fetched vault addresses
+     */
+    function getVaultAddresses(
+        uint256 startIdx,
+        uint256 endIdx
+    ) external view returns (address[] memory vaultList) {
+        vaultList = new address[](endIdx - startIdx + 1);
+        for (uint256 i = startIdx; i <= endIdx; i++) {
+            vaultList[i - startIdx] = _vaultsList[i];
+        }
+    }
+
+    /// @notice vaultCount counts the total number of vaults in existence
+    /// @return total count of vaults
+    function vaultCount() public view returns (uint256) {
+        return _vaultsList.length;
+    }
+
+    /**
+     * @dev Internal function to create vault proxy.
+     */
+    function _createVault(
         address tokenA,
         address tokenB,
         uint24 fee,
-        address treasury,
-        address manager,
-        uint16 managerFee,
-        string memory name,
-        string memory symbol
+        address pool,
+        address implementation,
+        bytes memory data
     ) internal returns (address vault) {
-        if (tokenA == tokenB) revert();
-        (address token0, address token1) = tokenA < tokenB
-            ? (tokenA, tokenB)
-            : (tokenB, tokenA);
+        if (data.length == 0) revert FactoryErrors.NoVaultInitDataProvided();
+        if (tokenA == tokenB) revert FactoryErrors.SameTokensAddresses();
+        address token0 = tokenA < tokenB ? tokenA : tokenB;
+        if (token0 == address(0x0)) revert("token cannot be a zero address");
 
-        if (token0 == address(0x0)) revert();
-        if (vaults[token0][token1][fee] != address(0)) revert VaultAlreadyExists();
-
-        int24 tickSpacing = IUniswapV3Factory(factory).feeAmountTickSpacing(fee);
+        int24 tickSpacing = IPancakeV3Factory(factory).feeAmountTickSpacing(fee);
         vault = address(
-            new RangeProtocolVault{
-                salt: keccak256(
-                    abi.encodePacked(
-                        token0,
-                        token1,
-                        fee,
-                        manager,
-                        name,
-                        symbol
-                    )
-                )
-            } (
-                pool,
-                tickSpacing,
-                treasury,
-                manager,
-                managerFee,
-                name,
-                symbol
+            new ERC1967Proxy(
+                implementation,
+                abi.encodeWithSelector(INIT_SELECTOR, pool, tickSpacing, data)
             )
         );
+        _vaultsList.push(vault);
+    }
 
-        vaults[token0][token1][fee] = vault;
-        vaults[token1][token0][fee] = vault;
-        allVaults.push(vault);
+    /**
+     * @dev Internal function to upgrade a vault's implementation.
+     */
+    function _upgradeVault(address _vault, address _impl) internal {
+        if (!Address.isContract(_impl)) revert FactoryErrors.ImplIsNotAContract();
+        (bool success, ) = _vault.call(abi.encodeWithSelector(UPGRADE_SELECTOR, _impl));
+
+        if (!success) revert FactoryErrors.VaultUpgradeFailed();
+        emit VaultImplUpgraded(_vault, _impl);
     }
 }
