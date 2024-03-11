@@ -96,8 +96,6 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
 
     function userCount() external view returns (uint256);
 
-    function lastRebalanceTimestamp() external view returns (uint256);
-
     // STATE MODIFYING FUNCTIONS
     function initialize(address _pool, int24 _tickSpacing, bytes memory data) external;
 
@@ -141,7 +139,7 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
         address target,
         bytes calldata swapData,
         bool zeroForOne,
-        uint256 amountIn
+        uint256 amount
     ) external;
 
     function mintETHx(uint256 amount) external returns (uint256 mintedETHx);

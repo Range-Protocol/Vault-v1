@@ -34,7 +34,7 @@ library DataTypes {
         mapping(address => UserVault) userVaults;
         address[] users;
         address WETH9;
-        uint256 lastRebalanceTimestamp;
+        uint256 unused_slot;
         // NOTE: Only add more state variable below it and do not change the order of above state variables.
     }
 }

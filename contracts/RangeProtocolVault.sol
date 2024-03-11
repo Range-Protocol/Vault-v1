@@ -43,7 +43,6 @@ contract RangeProtocolVault is
     RangeProtocolVaultStorage
 {
     address public constant staderConfig = 0x4ABEF2263d5A5ED582FC9A9789a41D85b68d69DB;
-    address public constant staderOracle = 0xF64bAe65f6f2a5277571143A24FaaFDFC0C2a737;
 
     // @notice restricts the call by self. It used to restrict the allowed calls only from the VaultLib.
     modifier onlyVault() {
@@ -55,9 +54,7 @@ contract RangeProtocolVault is
         _disableInitializers();
     }
 
-    receive() external payable {
-        require(msg.sender == state.WETH9);
-    }
+    receive() external payable {}
 
     /**
      * @notice initialize initializes the vault contract and is called right after proxy deployment
@@ -275,9 +272,9 @@ contract RangeProtocolVault is
         address target,
         bytes calldata swapData,
         bool zeroForOne,
-        uint256 amountIn
+        uint256 amount
     ) external override onlyManager {
-        VaultLib.rebalance(state, staderOracle, target, swapData, zeroForOne, amountIn);
+        VaultLib.rebalance(state, target, swapData, zeroForOne, amount);
     }
 
     /**

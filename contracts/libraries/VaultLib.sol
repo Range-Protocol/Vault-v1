@@ -4,12 +4,10 @@ pragma solidity 0.8.4;
 import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import {SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import {IERC20MetadataUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {IPancakeV3Pool} from "../pancake/interfaces/IPancakeV3Pool.sol";
 import {IStaderConfig} from "../interfaces/stader/IStaderConfig.sol";
 import {IStaderStakePoolManager} from "../interfaces/stader/IStaderStakePoolManager.sol";
-import {IStaderOracle, ExchangeRate} from "../interfaces/stader/IStaderOracle.sol";
 import {TickMath} from "../pancake/TickMath.sol";
 import {LiquidityAmounts} from "../pancake/LiquidityAmounts.sol";
 import {FullMath} from "../pancake/FullMath.sol";
@@ -499,15 +497,6 @@ library VaultLib {
         }
     }
 
-    struct RebalanceLocalVars {
-        uint256 balance0Before;
-        uint256 balance1Before;
-        uint256 balance0After;
-        uint256 balance1After;
-        uint256 amount0Delta;
-        uint256 amount1Delta;
-    }
-
     /*
      * @dev Allows rebalance of the vault by manager using off-chain quote and non-pool venues.
      * @param target address of the target swap venue.
@@ -517,48 +506,34 @@ library VaultLib {
      **/
     function rebalance(
         DataTypes.State storage state,
-        address staderOracle,
         address target,
         bytes calldata swapData,
         bool zeroForOne,
-        uint256 amountIn
+        uint256 amount
     ) external {
-        if (state.lastRebalanceTimestamp + 15 minutes > block.timestamp)
-            revert VaultErrors.RebalanceIntervalNotReached();
-        state.lastRebalanceTimestamp = block.timestamp;
-        if (amountIn == 0) revert VaultErrors.ZeroRebalanceAmount();
-        IERC20MetadataUpgradeable token0 = IERC20MetadataUpgradeable(address(state.token0));
-        IERC20MetadataUpgradeable token1 = IERC20MetadataUpgradeable(address(state.token1));
+        if (amount == 0) revert VaultErrors.ZeroRebalanceAmount();
 
-        RebalanceLocalVars memory vars;
-        vars.balance0Before = token0.balanceOf(address(this));
-        vars.balance1Before = token1.balanceOf(address(this));
+        uint256 balance0Before = state.token0.balanceOf(address(this));
+        uint256 balance1Before = state.token1.balanceOf(address(this));
 
         // perform the rebalance call.
-        IERC20Upgradeable tokenIn = zeroForOne
-            ? IERC20Upgradeable(address(token0))
-            : IERC20Upgradeable(address(token1));
-        tokenIn.safeApprove(target, amountIn);
+        IERC20Upgradeable tokenIn = zeroForOne ? state.token0 : state.token1;
+        tokenIn.safeApprove(target, amount);
         Address.functionCall(target, swapData);
         tokenIn.safeApprove(target, 0);
 
-        vars.balance0After = token0.balanceOf(address(this));
-        vars.balance1After = token1.balanceOf(address(this));
-        vars.amount0Delta = vars.balance0After > vars.balance0Before
-            ? vars.balance0After - vars.balance0Before
-            : vars.balance0Before - vars.balance0After;
-        vars.amount1Delta = vars.balance1After > vars.balance1Before
-            ? vars.balance1After - vars.balance1Before
-            : vars.balance1Before - vars.balance1After;
+        uint256 balance0After = state.token0.balanceOf(address(this));
+        uint256 balance1After = state.token1.balanceOf(address(this));
 
-        uint256 swapPrice = (vars.amount1Delta * 10 ** token0.decimals()) / vars.amount0Delta;
-        ExchangeRate memory er = IStaderOracle(staderOracle).getExchangeRate();
-        uint256 priceFromOracle = (er.totalETHBalance * 10 ** 18) / er.totalETHXSupply;
-
-        uint256 swapRatio = (priceFromOracle * 10_000) / swapPrice;
-        if (swapRatio < 9900 || swapRatio > 10100) {
-            revert VaultErrors.RebalanceSlippageExceedsThreshold();
-        }
+        emit Swapped(
+            zeroForOne,
+            zeroForOne
+                ? int256(balance0Before - balance0After)
+                : -int256(balance0After - balance0Before),
+            zeroForOne
+                ? -int256(balance1After - balance1Before)
+                : int256(balance1Before - balance1After)
+        );
     }
 
     function mintETHx(
@@ -569,7 +544,7 @@ library VaultLib {
         if (amount == 0) revert();
         IWETH9(state.WETH9).withdraw(amount);
         mintedETHx = IStaderStakePoolManager(IStaderConfig(staderConfig).getStakePoolManager())
-            .deposit{value: amount}(address(this));
+            .deposit{value: address(this).balance}(address(this));
     }
 
     /**

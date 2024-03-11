@@ -20,8 +20,5 @@ library VaultErrors {
     error SlippageExceedThreshold();
     error OnlyVaultAllowed();
     error InsufficientNativeTokenAmount(uint256);
-    error RebalanceSlippageExceedsThreshold();
     error ZeroRebalanceAmount();
-    error RebalanceIntervalNotReached();
-    error ZeroOtherFeeRecipientAddress();
 }
