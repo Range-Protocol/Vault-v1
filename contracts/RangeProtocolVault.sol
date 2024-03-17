@@ -91,8 +91,24 @@ contract RangeProtocolVault is
         state.factory = msg.sender;
         state.WETH9 = _WETH9;
 
+        // set default minimum rebalance interval to be 15 minutes.
+        state.minimumRebalanceInterval = 15 minutes;
+
+        // whitelist Native router by default.
+        state.whitelistedSwapRouters[0xEAd050515E10fDB3540ccD6f8236C46790508A76] = true;
+        emit SwapRouterAddedToWhitelist(0xEAd050515E10fDB3540ccD6f8236C46790508A76);
+
         // Managing fee is 0% and performanceFee is 10% at the time vault initialization.
         VaultLib.updateFees(state, 0, 1000);
+    }
+
+    // @dev a temporary function to reinitilize the existing deployed vaults.
+    function reinit() external onlyManager {
+        if (state.minimumRebalanceInterval == 0) {
+            state.minimumRebalanceInterval = 15 minutes;
+            state.whitelistedSwapRouters[0xEAd050515E10fDB3540ccD6f8236C46790508A76] = true;
+            emit SwapRouterAddedToWhitelist(0xEAd050515E10fDB3540ccD6f8236C46790508A76);
+        }
     }
 
     /**
@@ -261,6 +277,51 @@ contract RangeProtocolVault is
             );
     }
 
+    /**
+     * @dev setMinimumRebalanceInterval sets minimum rebalance interval for the rebalance.
+     * @param _minimumRebalanceInterval the minimum rebalance interval to set.
+     * requirements
+     * - can only be called by the vault's factory owner.
+     */
+    function setMinimumRebalanceInterval(uint256 _minimumRebalanceInterval) external override {
+        _onlyFactoryOwnerAllowed();
+        VaultLib.setMinimumRebalanceInterval(state, _minimumRebalanceInterval);
+    }
+
+    /**
+     * @dev whiteListSwapRouter whitelists the swap router address for rebalance.
+     * @param swapRouter swap router to whitelist.
+     * requirements
+     * - can only be called by the vault's factory owner.
+     */
+    function whiteListSwapRouter(address swapRouter) external override {
+        _onlyFactoryOwnerAllowed();
+        VaultLib.whiteListSwapRouter(state, swapRouter);
+    }
+
+    /**
+     * @dev removeSwapRouterFromWhitelist removes swap router from the swap router whitelist.
+     * @dev swapRouter swap router to remove from whitelist.
+     * requirements
+     * - can only be called by the vault's factory owner.
+     */
+    function removeSwapRouterFromWhitelist(address swapRouter) external override {
+        _onlyFactoryOwnerAllowed();
+        VaultLib.removeSwapRouterFromWhitelist(state, swapRouter);
+    }
+
+    /**
+     * @dev changeRebalancePauseStatus changes the rebalance status of the vault.
+     * requirements
+     * - can only be called by the vault's factory owner.
+     */
+    function changeRebalancePauseStatus(bool pauseStatus) external {
+        _onlyFactoryOwnerAllowed();
+        state.rebalancePaused = pauseStatus;
+
+        emit RebalancePausedStatusChanged(pauseStatus);
+    }
+
     /*
      * @dev Allows rebalance of the vault by manager using off-chain quote and non-pool venues.
      * @param target address of the target swap venue.
@@ -382,5 +443,10 @@ contract RangeProtocolVault is
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal override {
         super._beforeTokenTransfer(from, to, amount);
         VaultLib._beforeTokenTransfer(state, from, to, amount);
+    }
+
+    function _onlyFactoryOwnerAllowed() private {
+        (, bytes memory data) = state.factory.call(abi.encodeWithSignature("owner()"));
+        if (msg.sender != abi.decode(data, (address))) revert VaultErrors.OnlyFactoryOwnerAllowed();
     }
 }

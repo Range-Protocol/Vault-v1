@@ -109,4 +109,24 @@ abstract contract RangeProtocolVaultStorage is IRangeProtocolVault {
     function userCount() external view override returns (uint256) {
         return state.users.length;
     }
+
+    function rebalancePaused() external view override returns (bool) {
+        return state.rebalancePaused;
+    }
+
+    function lastRebalanceTimestamp() external view override returns (uint256) {
+        return state.lastRebalanceTimestamp;
+    }
+
+    function minimumRebalanceInterval() external view override returns (uint256) {
+        return state.minimumRebalanceInterval;
+    }
+
+    function whitelistedSwapRouters(address swapRouter) external view override returns (bool) {
+        return state.whitelistedSwapRouters[swapRouter];
+    }
+
+    function swapRouters(uint256 idx) external view override returns (address) {
+        return state.swapRouters[idx];
+    }
 }

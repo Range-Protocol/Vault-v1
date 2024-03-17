@@ -57,6 +57,9 @@ library VaultLib {
     event Swapped(bool zeroForOne, int256 amount0, int256 amount1);
     event TicksSet(int24 lowerTick, int24 upperTick);
     event MintStarted();
+    event SwapRouterAddedToWhitelist(address swapRouter);
+    event SwapRouterRemovedFromWhitelist(address swapRouter);
+    event RebalancePausedStatusChanged();
 
     /**
      * @notice updateTicks it is called by the contract manager to update the ticks.
@@ -497,6 +500,58 @@ library VaultLib {
         }
     }
 
+    /**
+     * @dev setMinimumRebalanceInterval sets minimum rebalance interval for the rebalance.
+     * @param _minimumRebalanceInterval the minimum rebalance interval to set.
+     */
+    function setMinimumRebalanceInterval(
+        DataTypes.State storage state,
+        uint256 _minimumRebalanceInterval
+    ) external {
+        state.minimumRebalanceInterval = _minimumRebalanceInterval;
+    }
+
+    /**
+     * @dev whiteListSwapRouter whitelists the swap router address for rebalance.
+     * @param swapRouter swap router to add to whitelist.
+     * requirements
+     * - swap router must not be whitelisted already.
+     */
+    function whiteListSwapRouter(DataTypes.State storage state, address swapRouter) external {
+        if (state.whitelistedSwapRouters[swapRouter]) revert VaultErrors.SwapRouterIsWhitelisted();
+
+        state.whitelistedSwapRouters[swapRouter] = true;
+        state.swapRouters.push(swapRouter);
+
+        emit SwapRouterAddedToWhitelist(swapRouter);
+    }
+
+    /**
+     * @dev removeSwapRouterFromWhitelist removes swap router from the swap router whitelist.
+     * @param swapRouter swap router address to remove from whitelist.
+     * requirements
+     * - can only be called by the vault's factory owner.
+     */
+    function removeSwapRouterFromWhitelist(
+        DataTypes.State storage state,
+        address swapRouter
+    ) external {
+        if (!state.whitelistedSwapRouters[swapRouter])
+            revert VaultErrors.SwapRouterIsNotWhitelisted();
+
+        state.whitelistedSwapRouters[swapRouter] = false;
+        uint256 length = state.swapRouters.length;
+        for (uint256 i = 0; i < length; i++) {
+            if (state.swapRouters[i] == swapRouter) {
+                state.swapRouters[i] = state.swapRouters[length - 1];
+                state.swapRouters.pop();
+                delete state.whitelistedSwapRouters[swapRouter];
+                emit SwapRouterRemovedFromWhitelist(swapRouter);
+                break;
+            }
+        }
+    }
+
     /*
      * @dev Allows rebalance of the vault by manager using off-chain quote and non-pool venues.
      * @param target address of the target swap venue.
@@ -512,27 +567,37 @@ library VaultLib {
         uint256 amount
     ) external {
         if (amount == 0) revert VaultErrors.ZeroRebalanceAmount();
+        if (state.rebalancePaused) revert VaultErrors.RebalanceIsPaused();
+        if (!state.whitelistedSwapRouters[target]) revert VaultErrors.SwapRouterIsNotWhitelisted();
 
-        uint256 balance0Before = state.token0.balanceOf(address(this));
-        uint256 balance1Before = state.token1.balanceOf(address(this));
+        if (state.lastRebalanceTimestamp + state.minimumRebalanceInterval > block.timestamp)
+            revert VaultErrors.RebalanceIntervalNotReached();
+
+        state.lastRebalanceTimestamp = block.timestamp;
+
+        (IERC20Upgradeable tokenIn, IERC20Upgradeable tokenOut) = zeroForOne
+            ? (state.token0, state.token1)
+            : (state.token1, state.token0);
+
+        uint256 tokenInBalanceBefore = tokenIn.balanceOf(address(this));
+        uint256 tokenOutBalanceBefore = tokenOut.balanceOf(address(this));
 
         // perform the rebalance call.
-        IERC20Upgradeable tokenIn = zeroForOne ? state.token0 : state.token1;
         tokenIn.safeApprove(target, amount);
         Address.functionCall(target, swapData);
         tokenIn.safeApprove(target, 0);
 
-        uint256 balance0After = state.token0.balanceOf(address(this));
-        uint256 balance1After = state.token1.balanceOf(address(this));
+        uint256 tokenInBalanceAfter = tokenIn.balanceOf(address(this));
+        uint256 tokenOutBalanceAfter = tokenOut.balanceOf(address(this));
+        if (tokenOutBalanceAfter <= tokenOutBalanceBefore) revert VaultErrors.IncorrectSwap();
+
+        int256 tokenInDelta = int256(tokenInBalanceBefore - tokenInBalanceAfter);
+        int256 tokenOutDelta = -int256(tokenOutBalanceAfter - tokenOutBalanceBefore);
 
         emit Swapped(
             zeroForOne,
-            zeroForOne
-                ? int256(balance0Before - balance0After)
-                : -int256(balance0After - balance0Before),
-            zeroForOne
-                ? -int256(balance1After - balance1Before)
-                : int256(balance1Before - balance1After)
+            zeroForOne ? tokenInDelta : tokenOutDelta,
+            zeroForOne ? tokenOutDelta : tokenInDelta
         );
     }
 

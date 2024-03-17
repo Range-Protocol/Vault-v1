@@ -41,6 +41,9 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
     event Swapped(bool zeroForOne, int256 amount0, int256 amount1);
     event TicksSet(int24 lowerTick, int24 upperTick);
     event MintStarted();
+    event SwapRouterAddedToWhitelist(address swapRouter);
+    event SwapRouterRemovedFromWhitelist(address swapRouter);
+    event RebalancePausedStatusChanged(bool pauseStatus);
 
     // GETTER FUNCTIONS
     function lowerTick() external view returns (int24);
@@ -96,6 +99,16 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
 
     function userCount() external view returns (uint256);
 
+    function rebalancePaused() external view returns (bool);
+
+    function lastRebalanceTimestamp() external view returns (uint256);
+
+    function minimumRebalanceInterval() external view returns (uint256);
+
+    function whitelistedSwapRouters(address swapRouter) external view returns (bool);
+
+    function swapRouters(uint256 idx) external view returns (address);
+
     // STATE MODIFYING FUNCTIONS
     function initialize(address _pool, int24 _tickSpacing, bytes memory data) external;
 
@@ -149,4 +162,10 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
     function collectManager() external;
 
     function updateFees(uint16 newManagingFee, uint16 newPerformanceFee) external;
+
+    function whiteListSwapRouter(address swapRouter) external;
+
+    function removeSwapRouterFromWhitelist(address swapRouter) external;
+
+    function setMinimumRebalanceInterval(uint256 _minimumRebalanceInterval) external;
 }

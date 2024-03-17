@@ -34,7 +34,11 @@ library DataTypes {
         mapping(address => UserVault) userVaults;
         address[] users;
         address WETH9;
-        uint256 unused_slot;
+        uint256 lastRebalanceTimestamp;
+        bool rebalancePaused;
+        uint256 minimumRebalanceInterval;
+        mapping(address => bool) whitelistedSwapRouters;
+        address[] swapRouters;
         // NOTE: Only add more state variable below it and do not change the order of above state variables.
     }
 }
