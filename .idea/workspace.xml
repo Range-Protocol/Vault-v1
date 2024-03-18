@@ -3,6 +3,7 @@
   <component name="ChangeListManager">
     <list default="true" id="258f5c0b-964d-498c-8c32-bcb92e568d13" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/contracts/errors/VaultErrors.sol" beforeDir="false" afterPath="$PROJECT_DIR$/contracts/errors/VaultErrors.sol" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -42,6 +43,7 @@
       <updated>1707979763245</updated>
       <workItem from="1707979764552" duration="1462000" />
       <workItem from="1710120846146" duration="2133000" />
+      <workItem from="1710671389850" duration="1126000" />
     </task>
     <servers />
   </component>

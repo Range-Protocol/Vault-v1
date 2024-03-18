@@ -310,18 +310,6 @@ contract RangeProtocolVault is
         VaultLib.removeSwapRouterFromWhitelist(state, swapRouter);
     }
 
-    /**
-     * @dev changeRebalancePauseStatus changes the rebalance status of the vault.
-     * requirements
-     * - can only be called by the vault's factory owner.
-     */
-    function changeRebalancePauseStatus(bool pauseStatus) external {
-        _onlyFactoryOwnerAllowed();
-        state.rebalancePaused = pauseStatus;
-
-        emit RebalancePausedStatusChanged(pauseStatus);
-    }
-
     /*
      * @dev Allows rebalance of the vault by manager using off-chain quote and non-pool venues.
      * @param target address of the target swap venue.

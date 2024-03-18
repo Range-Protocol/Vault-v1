@@ -35,7 +35,6 @@ library DataTypes {
         address[] users;
         address WETH9;
         uint256 lastRebalanceTimestamp;
-        bool rebalancePaused;
         uint256 minimumRebalanceInterval;
         mapping(address => bool) whitelistedSwapRouters;
         address[] swapRouters;

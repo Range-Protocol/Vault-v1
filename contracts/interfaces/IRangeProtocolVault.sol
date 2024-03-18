@@ -43,7 +43,6 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
     event MintStarted();
     event SwapRouterAddedToWhitelist(address swapRouter);
     event SwapRouterRemovedFromWhitelist(address swapRouter);
-    event RebalancePausedStatusChanged(bool pauseStatus);
 
     // GETTER FUNCTIONS
     function lowerTick() external view returns (int24);
@@ -98,8 +97,6 @@ interface IRangeProtocolVault is IERC20Upgradeable, IPancakeV3MintCallback, IPan
     function getPositionID() external view returns (bytes32 positionID);
 
     function userCount() external view returns (uint256);
-
-    function rebalancePaused() external view returns (bool);
 
     function lastRebalanceTimestamp() external view returns (uint256);
 

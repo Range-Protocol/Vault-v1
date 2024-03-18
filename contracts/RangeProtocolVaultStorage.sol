@@ -110,10 +110,6 @@ abstract contract RangeProtocolVaultStorage is IRangeProtocolVault {
         return state.users.length;
     }
 
-    function rebalancePaused() external view override returns (bool) {
-        return state.rebalancePaused;
-    }
-
     function lastRebalanceTimestamp() external view override returns (uint256) {
         return state.lastRebalanceTimestamp;
     }

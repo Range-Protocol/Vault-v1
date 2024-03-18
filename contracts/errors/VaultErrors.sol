@@ -21,7 +21,6 @@ library VaultErrors {
     error OnlyVaultAllowed();
     error InsufficientNativeTokenAmount(uint256);
     error ZeroRebalanceAmount();
-    error RebalanceIsPaused();
     error RebalanceIntervalNotReached();
     error OnlyFactoryOwnerAllowed();
     error SwapRouterIsWhitelisted();

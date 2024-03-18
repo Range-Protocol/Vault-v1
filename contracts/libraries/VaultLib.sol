@@ -59,7 +59,6 @@ library VaultLib {
     event MintStarted();
     event SwapRouterAddedToWhitelist(address swapRouter);
     event SwapRouterRemovedFromWhitelist(address swapRouter);
-    event RebalancePausedStatusChanged();
 
     /**
      * @notice updateTicks it is called by the contract manager to update the ticks.
@@ -567,7 +566,6 @@ library VaultLib {
         uint256 amount
     ) external {
         if (amount == 0) revert VaultErrors.ZeroRebalanceAmount();
-        if (state.rebalancePaused) revert VaultErrors.RebalanceIsPaused();
         if (!state.whitelistedSwapRouters[target]) revert VaultErrors.SwapRouterIsNotWhitelisted();
 
         if (state.lastRebalanceTimestamp + state.minimumRebalanceInterval > block.timestamp)
